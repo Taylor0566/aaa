@@ -22,7 +22,6 @@
 │   │   ├── profile/             # 个人资料
 │   │   ├── login/               # 登录
 │   │   └── register/            # 注册
-│   └── friend/                   # 好友相关页面
 ├── static/                       # 静态资源
 ├── uni_modules/                  # uni-app插件
 ├── admin/                        # Web管理后台（基于uni-admin）
