@@ -1,0 +1,26 @@
+{
+  "name": "content-api",
+  "version": "1.0.0",
+  "description": "内容相关功能云函数集合",
+  "main": "index.js",
+  "dependencies": {},
+  "extensions": {
+    "cloudfunctions": {
+      "createContent": {
+        "file": "./create-content.js"
+      },
+      "updateContent": {
+        "file": "./update-content.js"
+      },
+      "deleteContent": {
+        "file": "./delete-content.js"
+      },
+      "getContent": {
+        "file": "./get-content.js"
+      },
+      "approveContent": {
+        "file": "./approve-content.js"
+      }
+    }
+  }
+}
