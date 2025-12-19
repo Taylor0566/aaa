@@ -1,0 +1,8 @@
+{
+  "name": "uni-id-common",
+  "version": "1.0.0",
+  "description": "用户身份验证相关功能",
+  "dependencies": {
+    "uni-id-common": "^1.0.0"
+  }
+}
