@@ -30,3 +30,5 @@
 │   │   └── dashboard/           # 数据概览
 │   └── uni_modules/             # 管理后台插件
 └── 配置文件（manifest.json、pages.json等）
+├── app.uvue              # 应用入口组件
+├── main.js              # 应用入口文件
