@@ -1,0 +1,32 @@
+{
+  "bsonType": "object",
+  "required": ["follower_id", "following_id"],
+  "permission": {
+    "read": "auth.uid != null",
+    "create": "auth.uid != null",
+    "delete": "doc.follower_id == auth.uid || doc.following_id == auth.uid",
+    "update": false
+  },
+  "properties": {
+    "_id": {
+      "description": "ID，系统自动生成"
+    },
+    "follower_id": {
+      "bsonType": "string",
+      "title": "关注者ID",
+      "foreignKey": "uni-id-users._id"
+    },
+    "following_id": {
+      "bsonType": "string",
+      "title": "被关注者ID",
+      "foreignKey": "uni-id-users._id"
+    },
+    "create_date": {
+      "bsonType": "timestamp",
+      "title": "关注时间",
+      "defaultValue": {
+        "$env": "now"
+      }
+    }
+  }
+}

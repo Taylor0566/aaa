@@ -1,0 +1,97 @@
+{
+  "bsonType": "object",
+  "required": ["_id", "user_id"],
+  "permission": {
+    "read": "doc.user_id == auth.uid || 'admin' in auth.role",
+    "update": "doc.user_id == auth.uid || 'admin' in auth.role",
+    "delete": false,
+    "create": "doc.user_id == auth.uid"
+  },
+  "properties": {
+    "_id": {
+      "description": "ID，系统自动生成"
+    },
+    "user_id": {
+      "bsonType": "string",
+      "title": "用户ID",
+      "foreignKey": "uni-id-users._id"
+    },
+    "nickname": {
+      "bsonType": "string",
+      "title": "昵称",
+      "trim": "both",
+      "minLength": 2,
+      "maxLength": 20,
+      "defaultValue": "用户"
+    },
+    "avatar": {
+      "bsonType": "string",
+      "title": "头像",
+      "format": "url",
+      "defaultValue": "/static/default-avatar.png"
+    },
+    "gender": {
+      "bsonType": "int",
+      "title": "性别",
+      "description": "0:未知 1:男 2:女",
+      "defaultValue": 0
+    },
+    "birthday": {
+      "bsonType": "timestamp",
+      "title": "生日"
+    },
+    "signature": {
+      "bsonType": "string",
+      "title": "个性签名",
+      "maxLength": 100
+    },
+    "location": {
+      "bsonType": "string",
+      "title": "所在地"
+    },
+    "cover_image": {
+      "bsonType": "string",
+      "title": "封面图",
+      "format": "url",
+      "defaultValue": "/static/default-cover.jpg"
+    },
+    "following_count": {
+      "bsonType": "int",
+      "title": "关注数",
+      "minimum": 0,
+      "defaultValue": 0
+    },
+    "follower_count": {
+      "bsonType": "int",
+      "title": "粉丝数",
+      "minimum": 0,
+      "defaultValue": 0
+    },
+    "content_count": {
+      "bsonType": "int",
+      "title": "内容数",
+      "minimum": 0,
+      "defaultValue": 0
+    },
+    "likes_count": {
+      "bsonType": "int",
+      "title": "获赞数",
+      "minimum": 0,
+      "defaultValue": 0
+    },
+    "create_date": {
+      "bsonType": "timestamp",
+      "title": "创建时间",
+      "defaultValue": {
+        "$env": "now"
+      }
+    },
+    "update_date": {
+      "bsonType": "timestamp",
+      "title": "更新时间",
+      "defaultValue": {
+        "$env": "now"
+      }
+    }
+  }
+}
