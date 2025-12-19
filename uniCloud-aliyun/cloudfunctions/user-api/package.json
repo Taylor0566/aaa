@@ -1,0 +1,23 @@
+{
+  "name": "user-api",
+  "version": "1.0.0",
+  "description": "用户相关功能云函数集合",
+  "main": "index.js",
+  "dependencies": {},
+  "extensions": {
+    "cloudfunctions": {
+      "register": {
+        "file": "./register.js"
+      },
+      "login": {
+        "file": "./login.js"
+      },
+      "profile": {
+        "file": "./profile.js"
+      },
+      "updatePassword": {
+        "file": "./update-password.js"
+      }
+    }
+  }
+}
