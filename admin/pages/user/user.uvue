@@ -1,13 +1,353 @@
 <template>
-	<view>
-		
-	</view>
+  <view class="user-manage">
+    <!-- 筛选栏 -->
+    <view class="filter-bar">
+      <input 
+        v-model="filter.keyword" 
+        placeholder="请输入用户名/邮箱搜索" 
+        class="search-input"
+      />
+      <view class="date-filter">
+        <picker mode="date" v-model="filter.startDate">
+          <view class="picker-view">开始日期: {{ filter.startDate || '选择日期' }}</view>
+        </picker>
+        <picker mode="date" v-model="filter.endDate">
+          <view class="picker-view">结束日期: {{ filter.endDate || '选择日期' }}</view>
+        </picker>
+      </view>
+      <picker v-model="filter.status" :range="statusOptions" range-key="label">
+        <view class="status-picker">
+          {{ statusOptions.find(item => item.value === filter.status).label }}
+        </view>
+      </picker>
+      <button @click="getUserList" class="search-btn">查询</button>
+    </view>
+    
+    <!-- 用户列表 -->
+    <view class="user-list">
+      <view class="list-header">
+        <view class="list-col">用户名</view>
+        <view class="list-col">邮箱</view>
+        <view class="list-col">注册时间</view>
+        <view class="list-col">状态</view>
+        <view class="list-col">操作</view>
+      </view>
+      <view class="list-row" v-for="user in userList" :key="user._id">
+        <view class="list-col">{{ user.username }}</view>
+        <view class="list-col">{{ user.email || '未设置' }}</view>
+        <view class="list-col">{{ formatDate(user.create_time) }}</view>
+        <view class="list-col">
+          <text :class="user.status === 0 ? 'status-active' : 'status-disabled'">
+            {{ user.status === 0 ? '正常' : '已禁用' }}
+          </text>
+        </view>
+        <view class="list-col">
+          <button size="mini" @click="viewUserDetail(user._id)" class="btn-detail">详情</button>
+          <button 
+            size="mini" 
+            :class="user.status === 0 ? 'btn-disable' : 'btn-enable'"
+            @click="toggleUserStatus(user._id, user.status)"
+          >
+            {{ user.status === 0 ? '禁用' : '启用' }}
+          </button>
+          <button size="mini" class="btn-delete" @click="showDeleteConfirm(user._id)">删除</button>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 分页控件 -->
+    <view class="pagination" v-if="total > 0">
+      <button @click="changePage(page - 1)" :disabled="page <= 1">上一页</button>
+      <text>第 {{ page }} / {{ totalPages }} 页</text>
+      <button @click="changePage(page + 1)" :disabled="page >= totalPages">下一页</button>
+    </view>
+    
+    <!-- 删除确认弹窗 -->
+    <uni-popup ref="deletePopup" type="dialog">
+      <uni-popup-dialog 
+        title="删除确认" 
+        content="确定要删除该用户吗？此操作不可恢复，将同步删除用户发布的内容和评论！"
+        @confirm="confirmDelete"
+        @cancel="cancelDelete"
+      ></uni-popup-dialog>
+    </uni-popup>
+  </view>
 </template>
 
 <script setup>
-	
+import { ref, reactive, onLoad } from 'vue'
+
+// 状态选项
+const statusOptions = ref([
+  { value: 'all', label: '全部状态' },
+  { value: 'active', label: '正常用户' },
+  { value: 'disabled', label: '禁用用户' }
+])
+
+// 筛选条件
+const filter = reactive({
+  keyword: '',
+  startDate: '',
+  endDate: '',
+  status: 'all'
+})
+
+// 列表数据
+const userList = ref([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(10)
+const totalPages = ref(0)
+const deleteUserId = ref('')
+const deletePopup = ref(null)
+
+// 页面加载获取用户列表
+onLoad(() => {
+  getUserList()
+})
+
+// 获取用户列表
+const getUserList = async () => {
+  try {
+    const res = await uniCloud.callFunction({
+      name: 'admin-api',
+      data: {
+        action: 'getUserList',
+        keyword: filter.keyword,
+        startDate: filter.startDate,
+        endDate: filter.endDate,
+        status: filter.status,
+        page: page.value,
+        pageSize: pageSize.value,
+        token: uni.getStorageSync('adminToken')
+      }
+    })
+    if (res.result.code === 200) {
+      userList.value = res.result.data.list
+      total.value = res.result.data.total
+      totalPages.value = res.result.data.totalPages
+    } else {
+      uni.showToast({ title: res.result.message, icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: '获取用户列表失败', icon: 'none' })
+  }
+}
+
+// 切换用户状态
+const toggleUserStatus = async (userId, currentStatus) => {
+  try {
+    const newStatus = currentStatus === 0 ? 1 : 0
+    const res = await uniCloud.callFunction({
+      name: 'admin-api',
+      data: {
+        action: 'toggleUserStatus',
+        user_id: userId,
+        status: newStatus,
+        token: uni.getStorageSync('adminToken')
+      }
+    })
+    if (res.result.code === 200) {
+      uni.showToast({ title: res.result.message, icon: 'success' })
+      getUserList() // 刷新列表
+    } else {
+      uni.showToast({ title: res.result.message, icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: '切换用户状态失败', icon: 'none' })
+  }
+}
+
+// 查看用户详情
+const viewUserDetail = (userId) => {
+  uni.navigateTo({ url: `/pages/admin/user/detail?userId=${userId}` })
+}
+
+// 显示删除确认弹窗
+const showDeleteConfirm = (userId) => {
+  deleteUserId.value = userId
+  deletePopup.value.open()
+}
+
+// 确认删除用户
+const confirmDelete = async () => {
+  try {
+    const res = await uniCloud.callFunction({
+      name: 'admin-api',
+      data: {
+        action: 'deleteUser',
+        user_id: deleteUserId.value,
+        token: uni.getStorageSync('adminToken')
+      }
+    })
+    if (res.result.code === 200) {
+      uni.showToast({ title: '用户删除成功', icon: 'success' })
+      deletePopup.value.close()
+      getUserList() // 刷新列表
+    } else {
+      uni.showToast({ title: res.result.message, icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: '删除用户失败', icon: 'none' })
+  }
+}
+
+// 取消删除
+const cancelDelete = () => {
+  deletePopup.value.close()
+}
+
+// 切换页码
+const changePage = (newPage) => {
+  if (newPage < 1 || newPage > totalPages.value) return
+  page.value = newPage
+  getUserList()
+}
+
+// 日期格式化
+const formatDate = (timestamp) => {
+  if (!timestamp) return ''
+  const date = new Date(timestamp)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 </script>
 
-<style>
+<style scoped>
+.user-manage {
+  padding: 16rpx;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
 
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  padding: 20rpx;
+  background-color: #fff;
+  border-radius: 12rpx;
+  margin-bottom: 20rpx;
+  align-items: center;
+}
+
+.search-input {
+  flex: 1;
+  height: 80rpx;
+  padding: 0 20rpx;
+  border: 1rpx solid #e5e5e5;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+}
+
+.date-filter {
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+}
+
+.picker-view, .status-picker {
+  font-size: 28rpx;
+  color: #666;
+  padding: 0 16rpx;
+  height: 80rpx;
+  border: 1rpx solid #e5e5e5;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  min-width: 160rpx;
+  justify-content: center;
+}
+
+.search-btn {
+  height: 80rpx;
+  padding: 0 32rpx;
+  background-color: #007aff;
+  color: #fff;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+}
+
+.user-list {
+  background-color: #fff;
+  border-radius: 12rpx;
+  overflow: hidden;
+  margin-bottom: 20rpx;
+}
+
+.list-header {
+  display: flex;
+  background-color: #f9f9f9;
+  border-bottom: 1rpx solid #e5e5e5;
+}
+
+.list-row {
+  display: flex;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.list-col {
+  flex: 1;
+  padding: 24rpx 16rpx;
+  text-align: center;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  word-break: break-all;
+}
+
+.status-active {
+  color: #4cd964;
+}
+
+.status-disabled {
+  color: #ff3b30;
+}
+
+.btn-detail {
+  background-color: #007aff;
+  color: #fff;
+  margin: 0 8rpx;
+}
+
+.btn-disable {
+  background-color: #ff9500;
+  color: #fff;
+  margin: 0 8rpx;
+}
+
+.btn-enable {
+  background-color: #4cd964;
+  color: #fff;
+  margin: 0 8rpx;
+}
+
+.btn-delete {
+  background-color: #ff3b30;
+  color: #fff;
+  margin: 0 8rpx;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24rpx;
+  padding: 20rpx;
+  background-color: #fff;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+}
+
+.pagination button {
+  padding: 16rpx 32rpx;
+  border-radius: 8rpx;
+  background-color: #007aff;
+  color: #fff;
+}
+
+.pagination button:disabled {
+  background-color: #e5e5e5;
+  color: #999;
+}
 </style>
