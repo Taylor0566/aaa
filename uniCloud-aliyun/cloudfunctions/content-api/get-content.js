@@ -1,5 +1,4 @@
 'use strict';
-const uniCloud = require('uni-cloud-sdk');
 
 exports.main = async (event, context) => {
   const db = uniCloud.database();

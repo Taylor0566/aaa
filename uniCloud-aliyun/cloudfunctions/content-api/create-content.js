@@ -1,5 +1,4 @@
 'use strict';
-const uniCloud = require('uni-cloud-sdk');
 
 exports.main = async (event, context) => {
   const db = uniCloud.database();
@@ -14,7 +13,7 @@ exports.main = async (event, context) => {
     visibility = 'public' // 可见性
   } = event;
   
-  // 验证用户是否登录
+  // 验证用户是否登录（需要从token获取用户ID）
   if (!context.UID) {
     return {
       code: 401,
