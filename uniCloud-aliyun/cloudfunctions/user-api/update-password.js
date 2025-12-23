@@ -1,25 +1,47 @@
 'use strict';
-const uniIdCommon = require('uni-id-common');
+// 自定义 Token 校验
+const db = uniCloud.database();
+async function checkCustomToken(token) {
+  if (!token) return { code: 401, uid: null };
+  const now = Date.now();
+  const res = await db.collection('users')
+    .where({ login_token: token, token_expire: { $gt: now } })
+    .get();
+  return res.data?.length ? { code: 0, uid: res.data[0]._id } : { code: 401, uid: null };
+}
+
+
+// 记录密码修改日志
+async function recordPasswordChange(uid) {
+  try {
+    const collection = db.collection('password_change_logs');
+    
+    await collection.add({
+      user_id: uid,
+      changed_at: new Date()
+    });
+  } catch (error) {
+    console.error('[Record Password Change Error]', error);
+  }
+}
 
 exports.main = async (event, context) => {
-  const uniId = uniIdCommon.createInstance({
-    context
-  });
-  
   const { 
     old_password, 
     new_password,
-    confirm_password
+    confirm_password,
+	uniIdToken
   } = event;
   
-  if (!context.UID) {
-    return {
-      code: 401,
-      message: '请先登录',
-      data: null
-    };
-  }
-  
+  const tokenCheck = await checkCustomToken(uniIdToken);
+    if (tokenCheck.code !== 0) {
+      return {
+        code: 401,
+        message: '请先登录',
+        data: null
+      };
+    }
+   const uid = tokenCheck.uid;
   // 参数验证
   if (!old_password) {
     return {
@@ -62,19 +84,41 @@ exports.main = async (event, context) => {
   }
   
   try {
-    // 调用 uni-id 修改密码
-    const result = await uniId.updatePwd({
-      uid: context.UID,
-      oldPassword: old_password,
-      newPassword: new_password
-    });
+    const usersCollection = db.collection('users');
     
-    if (result.code === 0) {
-      // 记录密码修改日志
-      await recordPasswordChange(context.UID, context);
+    // 获取用户信息
+    const userResult = await usersCollection.doc(uid).get();
+    
+    if (!userResult.data || userResult.data.length === 0) {
+      return {
+        code: 404,
+        message: '用户不存在',
+        data: null
+      };
     }
     
-    return result;
+    const user = userResult.data[0];
+    
+    // 验证原密码
+    if (user.password !== old_password) {
+      return {
+        code: 1002,
+        message: '原密码错误',
+        data: null
+      };
+    }
+    
+    // 更新密码
+    await usersCollection.doc(uid).update({
+      password: new_password,
+      updated_at: new Date()
+    });
+    await recordPasswordChange(uid);
+    return {
+      code: 0,
+      message: '密码修改成功',
+      data: null
+    };
   } catch (error) {
     console.error('[Update Password Error]', error);
     return {
@@ -84,20 +128,3 @@ exports.main = async (event, context) => {
     };
   }
 };
-
-// 记录密码修改日志
-async function recordPasswordChange(uid, context) {
-  try {
-    const db = uniCloud.database();
-    const collection = db.collection('password_change_logs');
-    
-    await collection.add({
-      user_id: uid,
-      changed_at: new Date(),
-      client_ip: context.CLIENTIP || '',
-      user_agent: context.USER_AGENT || ''
-    });
-  } catch (error) {
-    console.error('[Record Password Change Error]', error);
-  }
-}

@@ -37,8 +37,16 @@
 </template>
 
 <script setup>
-import { ref, onLoad } from 'vue'
+import { ref, onLoad, onShow } from 'vue'
 import * as echarts from '@/uni_modules/echarts/components/ec-canvas/echarts'
+
+// 权限检查
+onShow(() => {
+  const token = uni.getStorageSync('adminToken')
+  if (!token) {
+    uni.reLaunch({ url: '/pages/login/login' })
+  }
+})
 
 // 响应式数据
 const userStats = ref({ total: 0, dailyActive: 0 })
@@ -50,8 +58,10 @@ const chart = ref(null)
 
 // 页面加载时获取数据
 onLoad(async () => {
-  await getSystemStats()
-  await getTrendData()
+  if (uni.getStorageSync('adminToken')) {
+    await getSystemStats()
+    await getTrendData()
+  }
 })
 
 // 获取系统核心统计数据

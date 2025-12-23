@@ -1,209 +1,202 @@
 'use strict';
-const uniCloud = require('uni-cloud-sdk');
-const uniIdCommon = require('uni-id-common');
 
-exports.main = async (event, context) => {
-  const { action, data = {} } = event;
-  
-  try {
-    // 用户认证相关 - 直接调用对应文件
-    if (['login', 'register', 'logout', 'update_password'].includes(action)) {
-      const module = require(`./${action}.js`);
-      return await module.main(event, context);
-    }
-    
-    // 其他功能转到主逻辑处理
-    return await handleAction(action, data, context);
-    
-  } catch (error) {
-    console.error(`[User API Error] ${action}:`, error);
-    return {
-      code: 500,
-      message: '服务器内部错误',
-      data: null
-    };
-  }
-};
+const db = uniCloud.database();
 
-// 统一处理其他action
-async function handleAction(action, data, context) {
-  const db = uniCloud.database();
-  const userCollection = db.collection('uni-id-users');
-  
-  switch (action) {
-    // 用户资料
-    case 'get_profile':
-      return await handleGetProfile(data, context, userCollection);
-    case 'update_profile':
-      return await handleUpdateProfile(data, context, userCollection);
-    
-    // 管理员功能
-    case 'admin_list_users':
-      return await handleAdminList(data, context, userCollection);
-    case 'admin_update_user':
-      return await handleAdminUpdate(data, context, userCollection);
-    case 'admin_disable_user':
-      return await handleAdminDisable(data, context, userCollection);
-    
-    // 实名认证
-    case 'submit_realname_auth':
-      return await handleSubmitRealname(data, context, userCollection);
-    
-    default:
-      return {
-        code: 400,
-        message: '无效的操作类型',
-        data: null
-      };
-  }
+// ==============================
+// 自定义 Token 校验
+// ==============================
+async function checkCustomToken(token) {
+  if (!token) return { code: 401, uid: null };
+  const now = Date.now();
+  const res = await db.collection('users')
+    .where({ login_token: token, token_expire: { $gt: now } })
+    .get();
+  return res.data?.length ? { code: 0, uid: res.data[0]._id } : { code: 401, uid: null };
 }
+const updatePassword = require('./update-password');
+const logout = require('./logout');
 
-// === 核心处理函数 ===
+// ==============================
+// 登录逻辑（内联）
+// ==============================
+async function handleLogin(event) {
+  const { username, password } = event;
+  if (!username || !password) {
+    return { code: 400, message: '用户名和密码不能为空', data: null };
+  }
 
-// 获取用户资料
-async function handleGetProfile(data, context, collection) {
-  const { user_id } = data;
-  const targetId = user_id || context.UID;
-  
-  if (!targetId) return { code: 401, message: '请先登录', data: null };
-  
-  const result = await collection.doc(targetId).get();
-  if (!result.data?.length) return { code: 404, message: '用户不存在', data: null };
-  
+  const userRes = await db.collection('users')
+    .where({ username, password })
+    .get();
+
+  if (!userRes.data?.length) {
+    return { code: 401, message: '用户名或密码错误', data: null };
+  }
+
+  const user = userRes.data[0];
+  const token = `${user._id}:${Date.now()}:${Math.random().toString(36).substring(2, 10)}`;
+  const expireTime = Date.now() + 7 * 24 * 3600 * 1000;
+  await db.collection('users').doc(user._id).update({
+    login_token: token,
+    token_expire: expireTime
+  });
+
+  const { password: _, login_token, token_expire, ...safeUserInfo } = user;
+
   return {
-    code: 200,
-    message: '获取成功',
-    data: filterUserInfo(result.data[0], context.UID === targetId)
+    code: 0,
+    message: '登录成功',
+    data: {
+      token,
+      userInfo: safeUserInfo
+    }
   };
 }
 
-// 更新用户资料
-async function handleUpdateProfile(data, context, collection) {
-  if (!context.UID) return { code: 401, message: '请先登录', data: null };
-  
-  const { nickname, gender, avatar, mobile, email } = data;
+// ==============================
+// 注册逻辑（可选，按需实现）
+// ==============================
+async function handleRegister(event) {
+  const { username, password } = event;
+  if (!username || !password) {
+    return { code: 400, message: '用户名和密码不能为空', data: null };
+  }
+
+  const exists = await db.collection('users')
+    .where({ username })
+    .get();
+  if (exists.data?.length) {
+    return { code: 409, message: '用户名已存在', data: null };
+  }
+
+  const res = await db.collection('users').add({
+    username,
+    password,
+    nickname: username,
+    gender: 0,
+    register_date: Date.now()
+  });
+
+  return { code: 0, message: '注册成功', data: { _id: res.id } };
+}
+
+// ==============================
+// 主入口
+// ==============================
+exports.main = async (event, context) => {
+  const { action, uniIdToken } = event;
+
+  try {
+    // 公开接口：直接调用内联函数
+    if (action === 'login') {
+      return await handleLogin(event);
+    }
+    else if (action === 'register') {
+      return await handleRegister(event);
+    }
+    else if (action === 'logout') {              // ← 添加这行
+      return await logout.main(event, context);
+    }
+    // 私有接口：校验 token
+    const tokenCheck = await checkCustomToken(uniIdToken);
+    if (tokenCheck.code !== 0) {
+      return { code: 401, message: '请先登录', data: null };
+    }
+    const uid = tokenCheck.uid;
+
+       if (action === 'get_profile' || action === 'get-profile') {
+         return await handleGetProfile(uid);
+       } else if (action === 'update_profile' || action === 'update-profile') {
+         return await handleUpdateProfile(event, uid);
+       } else if (action === 'update_password' || action === 'update-password') {
+         return await updatePassword.main(event, context);
+       } else {
+         return { code: 400, message: '无效的操作类型', data: null };
+       }
+
+  } catch (error) {
+    console.error(`[User API Error] ${action}:`, error);
+    return { code: 500, message: '服务器内部错误', data: null };
+  }
+};
+
+// ==============================
+// 私有接口实现
+// ==============================
+
+async function handleGetProfile(uid) {
+  const res = await db.collection('users').doc(uid).get();
+  if (!res.data?.length) {
+    return { code: 404, message: '用户不存在', data: null };
+  }
+  const user = res.data[0];
+  const { password, login_token, token_expire, ...safeUser } = user;
+  return { code: 200, message: '获取成功', data: safeUser };
+}
+
+async function handleUpdateProfile(event, uid) {
+  const { nickname, gender, avatar, mobile, email } = event;
   const updateData = { updated_at: new Date() };
-  
+
   if (nickname !== undefined) updateData.nickname = nickname;
   if (gender !== undefined) updateData.gender = gender;
   if (avatar !== undefined) updateData.avatar = avatar;
   if (mobile !== undefined) updateData.mobile = mobile;
   if (email !== undefined) updateData.email = email;
-  
-  await collection.doc(context.UID).update(updateData);
+
+  await db.collection('users').doc(uid).update(updateData);
   return { code: 200, message: '更新成功', data: null };
 }
 
-// 管理员用户列表
-async function handleAdminList(data, context, collection) {
-  const isAdmin = await checkAdminPermission(context.UID);
-  if (!isAdmin) return { code: 403, message: '无权操作', data: null };
-  
-  const { page = 1, page_size = 20 } = data;
-  const offset = (page - 1) * page_size;
-  
-  const query = collection.orderBy('register_date', 'desc');
-  const [listResult, totalResult] = await Promise.all([
-    query.skip(offset).limit(page_size).get(),
-    query.count()
-  ]);
-  
-  return {
-    code: 200,
-    message: '获取成功',
-    data: {
-      list: listResult.data.map(user => filterUserInfo(user, false)),
-      total: totalResult.total,
-      page,
-      page_size
-    }
-  };
-}
+async function handleSubmit() {
+  const oldPwd = oldPassword.value.trim()
+  const newPwd = newPassword.value.trim()
+  const confirmPwd = confirmPassword.value.trim()
 
-// 管理员更新用户
-async function handleAdminUpdate(data, context, collection) {
-  const isAdmin = await checkAdminPermission(context.UID);
-  if (!isAdmin) return { code: 403, message: '无权操作', data: null };
-  
-  const { user_id, update_data } = data;
-  if (!user_id || !update_data) return { code: 400, message: '参数错误', data: null };
-  
-  await collection.doc(user_id).update({
-    ...update_data,
-    updated_at: new Date()
-  });
-  
-  return { code: 200, message: '更新成功', data: null };
-}
-
-// 管理员禁用用户
-async function handleAdminDisable(data, context, collection) {
-  const isAdmin = await checkAdminPermission(context.UID);
-  if (!isAdmin) return { code: 403, message: '无权操作', data: null };
-  
-  const { user_id, status } = data;
-  if (!user_id || status === undefined) return { code: 400, message: '参数错误', data: null };
-  
-  await collection.doc(user_id).update({
-    status,
-    updated_at: new Date()
-  });
-  
-  return { code: 200, message: '操作成功', data: null };
-}
-
-// 提交实名认证
-async function handleSubmitRealname(data, context, collection) {
-  if (!context.UID) return { code: 401, message: '请先登录', data: null };
-  
-  const { real_name, identity, id_card_front, id_card_back } = data;
-  if (!real_name || !identity) return { code: 400, message: '请填写完整信息', data: null };
-  
-  const realnameAuth = {
-    type: 0,
-    auth_status: 1,
-    real_name,
-    identity,
-    id_card_front: id_card_front || '',
-    id_card_back: id_card_back || ''
-  };
-  
-  await collection.doc(context.UID).update({
-    realname_auth: realnameAuth,
-    updated_at: new Date()
-  });
-  
-  return { code: 200, message: '提交成功', data: null };
-}
-
-// === 工具函数 ===
-
-// 过滤用户敏感信息
-function filterUserInfo(user, isSelf) {
-  if (isSelf) return user;
-  
-  const { password, password_secret_version, token, third_party, ...filtered } = user;
-  
-  // 部分隐藏敏感信息
-  if (filtered.mobile) {
-    filtered.mobile = filtered.mobile.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+  if (!oldPwd) {
+    uni.showToast({ title: '请输入原密码', icon: 'none' })
+    return
   }
-  if (filtered.email) {
-    const [name, domain] = filtered.email.split('@');
-    filtered.email = name.substring(0, 2) + '****@' + domain;
+  if (!newPwd || newPwd.length < 6) {
+    uni.showToast({ title: '新密码至少6位', icon: 'none' })
+    return
   }
-  
-  return filtered;
-}
+  if (newPwd !== confirmPwd) {
+    uni.showToast({ title: '两次密码不一致', icon: 'none' })
+    return
+  }
 
-// 检查管理员权限
-async function checkAdminPermission(userId) {
   try {
-    const db = uniCloud.database();
-    const user = await db.collection('uni-id-users').doc(userId).get();
-    const roles = user.data?.[0]?.role || [];
-    return roles.includes('admin') || roles.includes('moderator');
-  } catch {
-    return false;
+    uni.showLoading({ title: '修改中...' })
+
+    // ✅ 调用 user-api，并传入 action: 'update-password'
+    const res = await uniCloud.callFunction({
+      name: 'user-api', // ← 云函数名是 user-api
+      data: {
+        action: 'update-password', // ← 指定具体操作
+        old_password: oldPwd,
+        new_password: newPwd,
+        confirm_password: confirmPwd
+      }
+    })
+
+    uni.hideLoading()
+    const { code, message } = res.result
+
+    if (code === 0) {
+      uni.showToast({ title: '密码修改成功', icon: 'success' })
+      setTimeout(() => {
+        uni.navigateBack()
+      }, 1500)
+    } else {
+      let msg = message || '修改失败'
+      if (code === 1002) msg = '原密码错误'
+      else if (code === 401) msg = '请先登录'
+      uni.showToast({ title: msg, icon: 'none' })
+    }
+  } catch (err) {
+    uni.hideLoading()
+    console.error('[修改密码错误]', err)
+    uni.showToast({ title: '网络异常，请重试', icon: 'none' })
   }
 }

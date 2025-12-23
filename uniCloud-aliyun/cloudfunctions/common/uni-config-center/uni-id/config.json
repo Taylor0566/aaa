@@ -1,0 +1,9 @@
+{
+  "isDefaultConfig": true,
+  "tokenSecret": "dbeecb1477846d7a66d47c68aceac6b17889d352e9932152d3f0c4f4893d8527",
+  "tokenExpiresIn": 7200,
+  "tokenExpiresThreshold": 600,
+  "passwordErrorLimit": 6,
+  "passwordErrorRetryTime": 3600
+}
+

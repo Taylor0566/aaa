@@ -1,0 +1,19 @@
+{
+  "name": "get-oss-upload-params",
+  "extensions": {
+    "uni-cloud-jql": {}
+  },
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@alicloud/sts-sdk": "^1.0.2"
+  }
+}

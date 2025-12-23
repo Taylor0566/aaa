@@ -2,13 +2,17 @@
 const userManage = require('./user-manage.js')
 const contentManage = require('./content-manage.js')
 const systemStats = require('./system-stats.js')
-const checkToken = require('../../uni-id-common/uni-id-common.js').checkToken
+const { verifyAdminToken } = require('admin-auth')
 
 exports.main = async (event, context) => {
   // 验证管理员权限
-  const tokenCheck = await checkToken(event.token)
-  if (tokenCheck.code !== 0 || !tokenCheck.role.includes('ADMIN')) {
-    return { code: 403, message: '没有管理员权限' }
+  try {
+    const payload = verifyAdminToken(event.token, context)
+    if (!payload?.role || !payload.role.includes('admin')) {
+      return { code: 403, message: '没有管理员权限' }
+    }
+  } catch (e) {
+    return { code: 403, message: '没有管理员权限: ' + e.message }
   }
 
   switch (event.action) {

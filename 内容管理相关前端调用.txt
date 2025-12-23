@@ -1,0 +1,45 @@
+内容管理接口
+1. 获取内容列表（管理员）
+
+uniCloud.callFunction({
+  name: 'admin-api',
+  data: {
+    action: 'getContentList',
+    contentType: 'all',           // 可选，内容类型：'all'|'text'|'image'|'video'|'mixed'
+    status: 'all',                // 可选，状态筛选
+    startDate: '2023-01-01',      // 可选，开始日期
+    endDate: '2023-12-31',        // 可选，结束日期
+    page: 1,                      // 可选，默认1
+    pageSize: 10,                 // 可选，默认10
+    keyword: '标题关键词'          // 可选，标题搜索
+  }
+});
+2. 更新内容状态（审核）
+
+uniCloud.callFunction({
+  name: 'admin-api',
+  data: {
+    action: 'updateContentStatus',
+    content_id: '内容ID',         // 必传，内容ID
+    status: 'approved',           // 必传，状态：'approved'|'rejected'
+    reason: '拒绝原因'            // 可选，status为'rejected'时必填
+  }
+});
+3. 删除内容（管理员）
+
+uniCloud.callFunction({
+  name: 'admin-api',
+  data: {
+    action: 'deleteContent',
+    content_id: '内容ID'          // 必传，内容ID
+  }
+});
+4. 获取内容详情（管理员）
+
+uniCloud.callFunction({
+  name: 'admin-api',
+  data: {
+    action: 'getContentDetail',
+    content_id: '内容ID'          // 必传，内容ID
+  }
+});

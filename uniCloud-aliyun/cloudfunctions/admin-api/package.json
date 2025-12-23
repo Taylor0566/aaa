@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "管理员后台API",
   "main": "index.js",
-  "dependencies": {},
+  "dependencies": {
+    "admin-auth": "file:../common/admin-auth"
+  },
   "extensions": {
     "cloudfunctions": {
       "getUserList": { "file": "./index.js" },

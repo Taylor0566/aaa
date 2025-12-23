@@ -102,7 +102,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, onLoad } from 'vue'
+import { ref, reactive, onLoad, onShow } from 'vue'
+
+// 权限检查
+onShow(() => {
+  const token = uni.getStorageSync('adminToken')
+  if (!token) {
+    uni.reLaunch({ url: '/pages/login/login' })
+  }
+})
 
 // 内容类型选项
 const contentTypeOptions = ref([
@@ -156,7 +164,9 @@ const deletePopup = ref(null)
 
 // 页面加载获取内容列表
 onLoad(() => {
-  getContentList()
+  if (uni.getStorageSync('adminToken')) {
+    getContentList()
+  }
 })
 
 // 获取内容列表

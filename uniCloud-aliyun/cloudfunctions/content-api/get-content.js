@@ -1,29 +1,31 @@
 'use strict';
 
 exports.main = async (event, context) => {
+  // 正确获取数据库实例
   const db = uniCloud.database();
   const collection = db.collection('contents');
+  const usersCollection = db.collection('users');  // 🟢 添加
   const dbCmd = db.command;
   
   const {
-    content_id = '',      // 单个内容ID
-    user_id = '',         // 用户ID（查看某个用户的内容）
-    tags = [],           // 标签搜索
-    start_date = '',     // 开始日期
-    end_date = '',       // 结束日期
-    keyword = '',        // 关键词搜索
-    content_type = '',   // 内容类型
-    page = 1,            // 页码
-    page_size = 20       // 每页数量
+    content_id = '',
+    user_id = '',
+    tags = [],
+    start_date = '',
+    end_date = '',
+    keyword = '',
+    content_type = '',
+    page = 1,
+    page_size = 20
   } = event;
   
   try {
-    // 1. 获取单个内容详情
+    // 获取单个内容详情
     if (content_id) {
-      return await getSingleContent(content_id, context, collection, dbCmd);
+      return await getSingleContent(content_id, context, collection, usersCollection, dbCmd);  // 🟢 修改
     }
     
-    // 2. 获取内容列表（支持搜索）
+    // 获取内容列表
     return await getContentList({
       user_id,
       tags,
@@ -33,7 +35,7 @@ exports.main = async (event, context) => {
       content_type,
       page,
       page_size
-    }, context, collection, dbCmd);
+    }, context, collection, usersCollection, dbCmd);  // 🟢 修改
     
   } catch (error) {
     console.error('获取内容失败:', error);
@@ -46,7 +48,7 @@ exports.main = async (event, context) => {
 };
 
 // 获取单个内容详情
-async function getSingleContent(contentId, context, collection, dbCmd) {
+async function getSingleContent(contentId, context, collection, usersCollection, dbCmd) {  // 🟢 修改
   const result = await collection.doc(contentId).get();
   
   if (!result.data || result.data.length === 0) {
@@ -59,9 +61,28 @@ async function getSingleContent(contentId, context, collection, dbCmd) {
   
   const content = result.data[0];
   
-  // 权限检查：只能查看自己的或公开的内容
-  const canView = checkContentVisibility(content, context.UID);
-  if (!canView) {
+  // 🟢 新增：获取用户信息
+  try {
+    const userResult = await usersCollection.doc(content.user_id).get();
+    if (userResult.data && userResult.data.length > 0) {
+      const user = userResult.data[0];
+      content.user_info = {
+        _id: user._id,
+        nickname: user.nickname || user.username,
+        avatar: user.avatar || '',
+        gender: user.gender || 0
+      };
+    }
+  } catch (userError) {
+    console.warn('获取用户信息失败:', userError);
+    content.user_info = {
+      nickname: '未知用户',
+      avatar: ''
+    };
+  }
+  
+  // 权限检查
+  if (!checkContentVisibility(content, context.UID)) {
     return {
       code: 403,
       message: '无权查看此内容',
@@ -82,8 +103,8 @@ async function getSingleContent(contentId, context, collection, dbCmd) {
   };
 }
 
-// 获取内容列表（支持搜索）
-async function getContentList(params, context, collection, dbCmd) {
+// 获取内容列表（修复版）
+async function getContentList(params, context, collection, usersCollection, dbCmd) {  // 🟢 修改
   const {
     user_id,
     tags,
@@ -98,42 +119,47 @@ async function getContentList(params, context, collection, dbCmd) {
   const offset = (page - 1) * page_size;
   
   // 构建查询条件
-  let query = collection.where({
-    deleted_at: null // 只查未删除的
-  });
+  const whereConditions = {
+    deleted_at: null
+  };
   
-  // 用户过滤
   if (user_id) {
-    query = query.where({ user_id });
+    whereConditions.user_id = user_id;
   }
   
-  // 标签搜索
   if (tags && tags.length > 0) {
     const tagArray = Array.isArray(tags) ? tags : tags.split(',').map(t => t.trim());
-    query = query.where({
-      tags: dbCmd.in(tagArray)
-    });
+    whereConditions.tags = dbCmd.in(tagArray);
   }
   
-  // 日期范围搜索
   if (start_date) {
     const startDate = new Date(start_date);
     startDate.setHours(0, 0, 0, 0);
-    query = query.where({
-      created_at: dbCmd.gte(startDate)
-    });
+    whereConditions.created_at = dbCmd.gte(startDate);
   }
   
   if (end_date) {
     const endDate = new Date(end_date);
     endDate.setHours(23, 59, 59, 999);
-    query = query.where({
-      created_at: dbCmd.lte(endDate)
-    });
+    whereConditions.created_at = dbCmd.lte(endDate);
   }
   
-  // 关键词搜索（标题和内容）
-  if (keyword.trim()) {
+  if (content_type) {
+    whereConditions.content_type = content_type;
+  }
+  
+  if (context.UID) {
+    whereConditions.$or = [
+      { user_id: context.UID },
+      { visibility: 'public' }
+    ];
+  } else {
+    whereConditions.visibility = 'public';
+  }
+  
+  let query = collection.where(whereConditions);
+  
+  if (keyword && keyword.trim()) {
     const keywordRegex = new RegExp(keyword.trim(), 'i');
     query = query.where(
       dbCmd.or([
@@ -144,24 +170,8 @@ async function getContentList(params, context, collection, dbCmd) {
     );
   }
   
-  // 内容类型过滤
-  if (content_type) {
-    query = query.where({ content_type });
-  }
+  console.log('查询条件:', JSON.stringify(whereConditions, null, 2));
   
-  // 权限过滤：只能查看自己的或公开的内容
-  if (context.UID) {
-    query = query.where(
-      dbCmd.or([
-        { user_id: context.UID },
-        { visibility: 'public' }
-      ])
-    );
-  } else {
-    query = query.where({ visibility: 'public' });
-  }
-  
-  // 按创建时间倒序排序
   query = query.orderBy('created_at', 'desc');
   
   // 执行查询
@@ -170,11 +180,51 @@ async function getContentList(params, context, collection, dbCmd) {
     query.count()
   ]);
   
+  console.log('查询结果数量:', listResult.data.length);
+  
+  // 🟢 新增：批量获取用户信息
+  const contents = listResult.data;
+  
+  if (contents.length > 0) {
+    const userIds = contents.map(item => item.user_id).filter(id => id);
+    
+    if (userIds.length > 0) {
+      const usersResult = await usersCollection
+        .where({
+          _id: dbCmd.in(userIds)
+        })
+        .field({
+          nickname: true,
+          avatar: true,
+          gender: true,
+          username: true
+        })
+        .get();
+      
+      const usersMap = {};
+      usersResult.data.forEach(user => {
+        usersMap[user._id] = {
+          _id: user._id,
+          nickname: user.nickname || user.username,
+          avatar: user.avatar || '',
+          gender: user.gender || 0
+        };
+      });
+      
+      contents.forEach(content => {
+        content.user_info = usersMap[content.user_id] || {
+          nickname: '未知用户',
+          avatar: ''
+        };
+      });
+    }
+  }
+  
   return {
     code: 200,
     message: '获取成功',
     data: {
-      list: listResult.data,
+      list: contents,
       pagination: {
         page: parseInt(page),
         page_size: parseInt(page_size),
@@ -191,11 +241,9 @@ function checkContentVisibility(content, userId) {
     return false;
   }
   
-  // 如果是作者本人，可以查看所有内容
   if (content.user_id === userId) {
     return true;
   }
   
-  // 其他人只能查看公开的内容
   return content.visibility === 'public';
 }

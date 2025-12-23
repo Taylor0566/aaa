@@ -1,0 +1,211 @@
+<template>
+  <view class="user-detail">
+    <view class="card info-card">
+      <view class="card-title">基本信息</view>
+      <view class="info-row">
+        <text class="label">用户ID：</text>
+        <text class="value">{{ userInfo._id }}</text>
+      </view>
+      <view class="info-row">
+        <text class="label">用户名：</text>
+        <text class="value">{{ userInfo.username || '未设置' }}</text>
+      </view>
+      <view class="info-row">
+        <text class="label">邮箱：</text>
+        <text class="value">{{ userInfo.email || '未设置' }}</text>
+      </view>
+      <view class="info-row">
+        <text class="label">手机号：</text>
+        <text class="value">{{ userInfo.mobile || '未设置' }}</text>
+      </view>
+      <view class="info-row">
+        <text class="label">注册时间：</text>
+        <text class="value">{{ formatDate(userInfo.create_time) }}</text>
+      </view>
+      <view class="info-row">
+        <text class="label">最后登录：</text>
+        <text class="value">{{ formatDate(userInfo.last_login_time) }}</text>
+      </view>
+      <view class="info-row">
+        <text class="label">当前状态：</text>
+        <text :class="userInfo.status === 0 ? 'status-active' : 'status-disabled'">
+          {{ userInfo.status === 0 ? '正常' : '已禁用' }}
+        </text>
+      </view>
+    </view>
+    
+    <view class="card stats-card">
+      <view class="card-title">数据统计</view>
+      <view class="stats-grid">
+        <view class="stat-item">
+          <view class="stat-num">{{ contentCount }}</view>
+          <view class="stat-label">发布内容</view>
+        </view>
+        <view class="stat-item">
+          <view class="stat-num">{{ commentCount }}</view>
+          <view class="stat-label">发布评论</view>
+        </view>
+      </view>
+    </view>
+    
+    <view class="action-bar">
+      <button 
+        :class="userInfo.status === 0 ? 'btn-disable' : 'btn-enable'"
+        @click="toggleStatus"
+      >
+        {{ userInfo.status === 0 ? '禁用账户' : '启用账户' }}
+      </button>
+    </view>
+  </view>
+</template>
+
+<script setup>
+  import { ref, onLoad } from 'vue'
+  
+  const userId = ref('')
+  const userInfo = ref({})
+  const contentCount = ref(0)
+  const commentCount = ref(0)
+  
+  onLoad((options) => {
+    if (options.userId) {
+      userId.value = options.userId
+      fetchDetail()
+    }
+  })
+  
+  const fetchDetail = async () => {
+    try {
+      const res = await uniCloud.callFunction({
+        name: 'admin-api',
+        data: {
+          action: 'getUserDetail',
+          user_id: userId.value,
+          token: uni.getStorageSync('adminToken')
+        }
+      })
+      
+      if (res.result.code === 200) {
+        userInfo.value = res.result.data.userInfo
+        contentCount.value = res.result.data.contentCount
+        commentCount.value = res.result.data.commentCount
+      } else {
+        uni.showToast({ title: res.result.message, icon: 'none' })
+      }
+    } catch (e) {
+      uni.showToast({ title: '获取详情失败', icon: 'none' })
+    }
+  }
+  
+  const toggleStatus = async () => {
+    try {
+      const newStatus = userInfo.value.status === 0 ? 1 : 0
+      const res = await uniCloud.callFunction({
+        name: 'admin-api',
+        data: {
+          action: 'toggleUserStatus',
+          user_id: userId.value,
+          status: newStatus,
+          token: uni.getStorageSync('adminToken')
+        }
+      })
+      
+      if (res.result.code === 200) {
+        uni.showToast({ title: '操作成功', icon: 'success' })
+        fetchDetail() // 刷新
+      } else {
+        uni.showToast({ title: res.result.message, icon: 'none' })
+      }
+    } catch (e) {
+      uni.showToast({ title: '操作失败', icon: 'none' })
+    }
+  }
+  
+  const formatDate = (timestamp) => {
+    if (!timestamp) return '无'
+    const date = new Date(timestamp)
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  }
+</script>
+
+<style scoped>
+  .user-detail {
+    padding: 20rpx;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+  }
+  
+  .card {
+    background-color: #fff;
+    border-radius: 12rpx;
+    padding: 30rpx;
+    margin-bottom: 20rpx;
+  }
+  
+  .card-title {
+    font-size: 32rpx;
+    font-weight: bold;
+    margin-bottom: 30rpx;
+    padding-left: 16rpx;
+    border-left: 8rpx solid #007aff;
+  }
+  
+  .info-row {
+    display: flex;
+    margin-bottom: 20rpx;
+    font-size: 28rpx;
+  }
+  
+  .label {
+    width: 160rpx;
+    color: #666;
+  }
+  
+  .value {
+    flex: 1;
+    color: #333;
+  }
+  
+  .status-active {
+    color: #4cd964;
+  }
+  
+  .status-disabled {
+    color: #ff3b30;
+  }
+  
+  .stats-grid {
+    display: flex;
+    justify-content: space-around;
+  }
+  
+  .stat-item {
+    text-align: center;
+  }
+  
+  .stat-num {
+    font-size: 48rpx;
+    font-weight: bold;
+    color: #007aff;
+    margin-bottom: 10rpx;
+  }
+  
+  .stat-label {
+    font-size: 24rpx;
+    color: #666;
+  }
+  
+  .action-bar {
+    margin-top: 40rpx;
+  }
+  
+  .btn-disable {
+    background-color: #ff9500;
+    color: #fff;
+  }
+  
+  .btn-enable {
+    background-color: #4cd964;
+    color: #fff;
+  }
+</style>

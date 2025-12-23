@@ -1,0 +1,43 @@
+用户管理接口
+1. 获取用户列表（管理员）
+
+uniCloud.callFunction({
+  name: 'admin-api',
+  data: {
+    action: 'getUserList',
+    keyword: '搜索关键词',        // 可选，用户名/邮箱搜索
+    startDate: '2023-01-01',      // 可选，开始日期
+    endDate: '2023-12-31',        // 可选，结束日期
+    page: 1,                      // 可选，默认1
+    pageSize: 10,                 // 可选，默认10
+    status: 'all'                 // 可选，筛选状态：'all'|'active'|'disabled'，默认'all'
+  }
+});
+2. 启用 / 禁用用户（管理员）
+
+uniCloud.callFunction({
+  name: 'admin-api',
+  data: {
+    action: 'toggleUserStatus',
+    user_id: '用户ID',            // 必传，用户ID
+    status: true                  // 必传，true-禁用，false-启用
+  }
+});
+3. 删除用户（管理员）
+
+uniCloud.callFunction({
+  name: 'admin-api',
+  data: {
+    action: 'deleteUser',
+    user_id: '用户ID'             // 必传，用户ID
+  }
+});
+4. 获取用户详情（管理员）
+
+uniCloud.callFunction({
+  name: 'admin-api',
+  data: {
+    action: 'getUserDetail',
+    user_id: '用户ID'             // 必传，用户ID
+  }
+});

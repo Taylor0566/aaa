@@ -75,7 +75,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, onLoad } from 'vue'
+import { ref, reactive, onLoad, onShow } from 'vue'
+
+// 权限检查
+onShow(() => {
+  const token = uni.getStorageSync('adminToken')
+  if (!token) {
+    uni.reLaunch({ url: '/pages/login/login' })
+  }
+})
 
 // 状态选项
 const statusOptions = ref([
@@ -103,7 +111,9 @@ const deletePopup = ref(null)
 
 // 页面加载获取用户列表
 onLoad(() => {
-  getUserList()
+  if (uni.getStorageSync('adminToken')) {
+    getUserList()
+  }
 })
 
 // 获取用户列表

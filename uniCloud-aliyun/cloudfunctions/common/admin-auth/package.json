@@ -1,0 +1,9 @@
+{
+  "name": "admin-auth",
+  "version": "1.0.0",
+  "description": "Admin authentication utilities",
+  "main": "index.js",
+  "dependencies": {
+    "uni-id-common": "^1.0.0"
+  }
+}

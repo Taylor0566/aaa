@@ -1,0 +1,333 @@
+<template>
+  <view class="content-detail">
+    <!-- 内容主体 -->
+    <view class="card content-card">
+      <view class="content-title">{{ content.title || '无标题' }}</view>
+      <view class="content-meta">
+        <text class="meta-item">类型: {{ getContentType(content.content_type) }}</text>
+        <text class="meta-item">时间: {{ formatDate(content.created_at) }}</text>
+        <text class="meta-item" :class="getStatusClass(content.status)">状态: {{ getStatusText(content.status) }}</text>
+      </view>
+      
+      <view class="content-body">
+        <text v-if="content.content">{{ content.content }}</text>
+        
+        <!-- 图片展示 -->
+        <view v-if="content.images && content.images.length" class="image-list">
+          <image 
+            v-for="(img, index) in content.images" 
+            :key="index" 
+            :src="img" 
+            mode="widthFix" 
+            class="content-img"
+          ></image>
+        </view>
+      </view>
+      
+      <!-- 审核信息 -->
+      <view v-if="content.status === 'rejected'" class="reject-info">
+        <text class="reject-label">拒绝原因：</text>
+        <text class="reject-reason">{{ content.content_check?.reject_reason || '无' }}</text>
+      </view>
+    </view>
+    
+    <!-- 发布者信息 -->
+    <view class="card author-card">
+      <view class="card-title">发布者信息</view>
+      <view class="info-row">
+        <text class="label">用户名：</text>
+        <text class="value">{{ userInfo?.username || '匿名' }}</text>
+      </view>
+      <view class="info-row">
+        <text class="label">邮箱：</text>
+        <text class="value">{{ userInfo?.email || '未设置' }}</text>
+      </view>
+    </view>
+    
+    <!-- 评论列表 -->
+    <view class="card comments-card">
+      <view class="card-title">最新评论 ({{ comments.length }})</view>
+      <view v-if="comments.length === 0" class="empty-tip">暂无评论</view>
+      <view v-for="comment in comments" :key="comment._id" class="comment-item">
+        <view class="comment-user">{{ comment.user_id }}</view>
+        <view class="comment-content">{{ comment.comment_content }}</view>
+        <view class="comment-time">{{ formatDate(comment.created_at) }}</view>
+      </view>
+    </view>
+    
+    <!-- 底部操作栏 -->
+    <view class="bottom-bar">
+      <button class="btn btn-reject" @click="showAuditPopup('rejected')">拒绝</button>
+      <button class="btn btn-approve" @click="showAuditPopup('approved')">通过</button>
+    </view>
+    
+    <!-- 审核弹窗 -->
+    <uni-popup ref="auditPopup" type="dialog">
+      <uni-popup-dialog 
+        :title="auditAction === 'approved' ? '通过审核' : '拒绝审核'" 
+        :content="auditAction === 'approved' ? '确定要通过该内容吗？' : ''"
+        @confirm="confirmAudit"
+        @cancel="cancelAudit"
+      >
+        <view v-if="auditAction === 'rejected'" class="audit-form">
+          <textarea 
+            v-model="rejectReason" 
+            placeholder="请输入拒绝原因" 
+            class="reason-input"
+          ></textarea>
+        </view>
+      </uni-popup-dialog>
+    </uni-popup>
+  </view>
+</template>
+
+<script setup>
+  import { ref, onLoad } from 'vue'
+  
+  const contentId = ref('')
+  const content = ref({})
+  const userInfo = ref({})
+  const comments = ref([])
+  const auditPopup = ref(null)
+  const auditAction = ref('approved')
+  const rejectReason = ref('')
+  
+  onLoad((options) => {
+    if (options.contentId) {
+      contentId.value = options.contentId
+      fetchDetail()
+    }
+  })
+  
+  const fetchDetail = async () => {
+    try {
+      const res = await uniCloud.callFunction({
+        name: 'admin-api',
+        data: {
+          action: 'getContentDetail',
+          content_id: contentId.value,
+          token: uni.getStorageSync('adminToken')
+        }
+      })
+      
+      if (res.result.code === 200) {
+        content.value = res.result.data.content
+        userInfo.value = res.result.data.userInfo
+        comments.value = res.result.data.comments || []
+      } else {
+        uni.showToast({ title: res.result.message, icon: 'none' })
+      }
+    } catch (e) {
+      uni.showToast({ title: '获取详情失败', icon: 'none' })
+    }
+  }
+  
+  const showAuditPopup = (action) => {
+    auditAction.value = action
+    rejectReason.value = ''
+    auditPopup.value.open()
+  }
+  
+  const confirmAudit = async () => {
+    if (auditAction.value === 'rejected' && !rejectReason.value.trim()) {
+      uni.showToast({ title: '请输入拒绝原因', icon: 'none' })
+      return
+    }
+    
+    try {
+      const res = await uniCloud.callFunction({
+        name: 'admin-api',
+        data: {
+          action: 'updateContentStatus',
+          content_id: contentId.value,
+          status: auditAction.value,
+          reason: rejectReason.value,
+          token: uni.getStorageSync('adminToken')
+        }
+      })
+      
+      if (res.result.code === 200) {
+        uni.showToast({ title: '操作成功', icon: 'success' })
+        auditPopup.value.close()
+        fetchDetail()
+      } else {
+        uni.showToast({ title: res.result.message, icon: 'none' })
+      }
+    } catch (e) {
+      uni.showToast({ title: '操作失败', icon: 'none' })
+    }
+  }
+  
+  const cancelAudit = () => {
+    auditPopup.value.close()
+  }
+  
+  const formatDate = (timestamp) => {
+    if (!timestamp) return '无'
+    const date = new Date(timestamp)
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  }
+  
+  const getContentType = (type) => {
+    const map = { article: '文章', image: '图片', video: '视频', audio: '音频' }
+    return map[type] || type || '未知'
+  }
+  
+  const getStatusText = (status) => {
+    const map = { pending: '待审核', approved: '已通过', rejected: '已拒绝', published: '已发布' }
+    return map[status] || status || '未知'
+  }
+  
+  const getStatusClass = (status) => {
+    if (status === 'pending') return 'text-warning'
+    if (status === 'approved' || status === 'published') return 'text-success'
+    if (status === 'rejected') return 'text-danger'
+    return ''
+  }
+</script>
+
+<style scoped>
+  .content-detail {
+    padding: 20rpx;
+    padding-bottom: 120rpx;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+  }
+  
+  .card {
+    background-color: #fff;
+    border-radius: 12rpx;
+    padding: 30rpx;
+    margin-bottom: 20rpx;
+  }
+  
+  .content-title {
+    font-size: 36rpx;
+    font-weight: bold;
+    margin-bottom: 20rpx;
+    color: #333;
+  }
+  
+  .content-meta {
+    display: flex;
+    gap: 20rpx;
+    font-size: 24rpx;
+    color: #999;
+    margin-bottom: 30rpx;
+    border-bottom: 1rpx solid #eee;
+    padding-bottom: 20rpx;
+  }
+  
+  .content-body {
+    font-size: 30rpx;
+    color: #333;
+    line-height: 1.6;
+  }
+  
+  .image-list {
+    margin-top: 20rpx;
+  }
+  
+  .content-img {
+    width: 100%;
+    margin-bottom: 10rpx;
+    border-radius: 8rpx;
+  }
+  
+  .reject-info {
+    margin-top: 20rpx;
+    padding: 20rpx;
+    background-color: #fff0f0;
+    border-radius: 8rpx;
+  }
+  
+  .reject-label {
+    color: #ff3b30;
+    font-weight: bold;
+  }
+  
+  .reject-reason {
+    color: #333;
+  }
+  
+  .card-title {
+    font-size: 30rpx;
+    font-weight: bold;
+    margin-bottom: 20rpx;
+    border-left: 6rpx solid #007aff;
+    padding-left: 16rpx;
+  }
+  
+  .info-row {
+    margin-bottom: 10rpx;
+    font-size: 28rpx;
+  }
+  
+  .comment-item {
+    border-bottom: 1rpx solid #eee;
+    padding: 20rpx 0;
+  }
+  
+  .comment-user {
+    font-size: 24rpx;
+    color: #666;
+    margin-bottom: 8rpx;
+  }
+  
+  .comment-content {
+    font-size: 28rpx;
+    color: #333;
+    margin-bottom: 8rpx;
+  }
+  
+  .comment-time {
+    font-size: 22rpx;
+    color: #999;
+  }
+  
+  .bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100rpx;
+    background-color: #fff;
+    display: flex;
+    align-items: center;
+    padding: 0 20rpx;
+    box-shadow: 0 -2rpx 10rpx rgba(0,0,0,0.05);
+  }
+  
+  .btn {
+    flex: 1;
+    margin: 0 10rpx;
+    font-size: 30rpx;
+  }
+  
+  .btn-reject {
+    background-color: #ff3b30;
+    color: #fff;
+  }
+  
+  .btn-approve {
+    background-color: #4cd964;
+    color: #fff;
+  }
+  
+  .text-warning { color: #ff9500; }
+  .text-success { color: #4cd964; }
+  .text-danger { color: #ff3b30; }
+  
+  .audit-form {
+    padding: 20rpx 0;
+  }
+  
+  .reason-input {
+    width: 100%;
+    height: 160rpx;
+    border: 1rpx solid #e5e5e5;
+    padding: 10rpx;
+    border-radius: 8rpx;
+    font-size: 28rpx;
+  }
+</style>

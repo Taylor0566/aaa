@@ -1,5 +1,6 @@
 'use strict';
 
+
 exports.main = async (event, context) => {
   const db = uniCloud.database();
   const collection = db.collection('contents');
@@ -13,7 +14,7 @@ exports.main = async (event, context) => {
     visibility = 'public' // 可见性
   } = event;
   
-  // 验证用户是否登录（需要从token获取用户ID）
+  // 验证用户是否登录
   if (!context.UID) {
     return {
       code: 401,

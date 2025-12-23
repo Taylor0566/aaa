@@ -1,0 +1,129 @@
+<template>
+  <view class="login-container">
+    <view class="login-box">
+      <view class="title">后台管理系统</view>
+      <view class="form-item">
+        <text class="label">账号</text>
+        <input class="input" v-model="form.username" placeholder="请输入管理员账号" />
+      </view>
+      <view class="form-item">
+        <text class="label">密码</text>
+        <input class="input" v-model="form.password" password placeholder="请输入密码" />
+      </view>
+      <button class="btn-login" @click="handleLogin" :loading="loading">登录</button>
+      
+      <!-- Only for dev/demo purposes to show capabilities -->
+      <view class="actions">
+        <!-- <text class="link" @click="showRegister = true">注册管理员</text> -->
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup>
+  import { reactive, ref } from 'vue'
+  
+  const form = reactive({
+    username: '',
+    password: ''
+  })
+  
+  const loading = ref(false)
+  
+  const handleLogin = async () => {
+    if (!form.username || !form.password) {
+      uni.showToast({ title: '请输入账号和密码', icon: 'none' })
+      return
+    }
+    
+    loading.value = true
+    
+    try {
+      const adminOperation = uniCloud.importObject('admin-operation')
+      const res = await adminOperation.login({
+        username: form.username,
+        password: form.password
+      })
+      
+      // Store token
+      uni.setStorageSync('adminToken', res.token)
+      uni.setStorageSync('adminUser', res.userInfo)
+      
+      uni.showToast({ title: '登录成功', icon: 'success' })
+      
+      setTimeout(() => {
+        uni.reLaunch({ url: '/pages/dashboard/dashboard' })
+      }, 1000)
+      
+    } catch (e) {
+      uni.showToast({ title: e.message || '登录失败', icon: 'none' })
+    } finally {
+      loading.value = false
+    }
+  }
+</script>
+
+<style scoped>
+  .login-container {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f5f5f5;
+  }
+  
+  .login-box {
+    width: 600rpx;
+    padding: 60rpx;
+    background-color: #fff;
+    border-radius: 20rpx;
+    box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.1);
+  }
+  
+  .title {
+    font-size: 40rpx;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 60rpx;
+    color: #333;
+  }
+  
+  .form-item {
+    margin-bottom: 40rpx;
+  }
+  
+  .label {
+    display: block;
+    font-size: 28rpx;
+    color: #666;
+    margin-bottom: 16rpx;
+  }
+  
+  .input {
+    height: 80rpx;
+    border: 2rpx solid #e5e5e5;
+    border-radius: 8rpx;
+    padding: 0 20rpx;
+    font-size: 28rpx;
+  }
+  
+  .btn-login {
+    margin-top: 60rpx;
+    background-color: #007aff;
+    color: #fff;
+    border-radius: 40rpx;
+    height: 88rpx;
+    line-height: 88rpx;
+    font-size: 32rpx;
+  }
+  
+  .actions {
+    margin-top: 30rpx;
+    text-align: right;
+  }
+  
+  .link {
+    font-size: 24rpx;
+    color: #007aff;
+  }
+</style>

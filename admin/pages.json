@@ -1,15 +1,23 @@
 {
   "pages": [
     {
-      "path": "pages/dashboard/index",
+      "path": "pages/login/login",
       "style": {
-        "navigationBarTitleText": "系统概览"
+        "navigationBarTitleText": "管理员登录"
       }
     },
     {
-      "path": "pages/user/list",
+      "path": "pages/dashboard/dashboard",
       "style": {
-        "navigationBarTitleText": "用户管理"
+        "navigationBarTitleText": "系统概览",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/user/user",
+      "style": {
+        "navigationBarTitleText": "用户管理",
+        "enablePullDownRefresh": true
       }
     },
     {
@@ -19,9 +27,10 @@
       }
     },
     {
-      "path": "pages/content/list",
+      "path": "pages/content/content",
       "style": {
-        "navigationBarTitleText": "内容管理"
+        "navigationBarTitleText": "内容管理",
+        "enablePullDownRefresh": true
       }
     },
     {
@@ -30,5 +39,31 @@
         "navigationBarTitleText": "内容详情"
       }
     }
-  ]
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "后台管理",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  },
+  "tabBar": {
+    "color": "#7A7E83",
+    "selectedColor": "#007AFF",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/dashboard/dashboard",
+        "text": "概览"
+      },
+      {
+        "pagePath": "pages/user/user",
+        "text": "用户"
+      },
+      {
+        "pagePath": "pages/content/content",
+        "text": "内容"
+      }
+    ]
+  }
 }
