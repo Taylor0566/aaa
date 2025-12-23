@@ -1,0 +1,51 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/user/login/login",
+    "pages/user/register/register",
+    "pages/comtent/upload/upload",
+    "pages/comtent/list/list",
+    "pages/comtent/detail/detail",
+    "pages/user/profile/profile",
+    "pages/user/change-password/change-password"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationStyle": "custom"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#007aff",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/comtent/upload/upload",
+        "text": "上传",
+        "iconPath": "static/images/upload.png",
+        "selectedIconPath": "static/images/upload_1.png"
+      },
+      {
+        "pagePath": "pages/comtent/list/list",
+        "text": "朋友圈",
+        "iconPath": "static/images/home.png",
+        "selectedIconPath": "static/images/home_1.png"
+      },
+      {
+        "pagePath": "pages/user/profile/profile",
+        "text": "个人中心",
+        "iconPath": "static/images/user.png",
+        "selectedIconPath": "static/images/user_1.png"
+      }
+    ]
+  },
+  "network": {
+    "requestLegalDomain": [
+      "https://api.next.bspapp.com"
+    ],
+    "uploadFileLegalDomain": [
+      "https://api.next.bspapp.com"
+    ]
+  },
+  "usingComponents": {}
+}

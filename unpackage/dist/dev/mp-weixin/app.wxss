@@ -1,0 +1,17 @@
+
+/* 全局样式：来自 app.wxss */
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 200rpx 0;
+  box-sizing: border-box;
+}
+
+/* uni-app 默认会引入一些基础样式，如需重置可加 */
+page {
+  background-color: #ffffff;
+}
+page{--status-bar-height:25px;--top-window-height:0px;--window-top:0px;--window-bottom:0px;--window-left:0px;--window-right:0px;--window-magin:0px;--uni-safe-area-inset-top:0px;--uni-safe-area-inset-left:0px;--uni-safe-area-inset-right:0px;--uni-safe-area-inset-bottom:0px;}[data-c-h="true"]{display: none !important;}

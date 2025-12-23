@@ -1,0 +1,61 @@
+@import "../../../uvue.wxss";
+:host{display:flex;flex-direction:column}
+
+/* 样式保持不变 */
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #f5f5f5;
+}
+.card {
+  width: 90%;
+  max-width: 947rpx;
+  padding: 80rpx;
+  border-radius: 50rpx;
+  background-color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+.title {
+  font-size: 48rpx;
+  margin-bottom: 80rpx;
+  color: #333;
+}
+.input-group {
+  margin-bottom: 40rpx;
+  text-align: left;
+}
+.label {
+  display: block;
+  margin-bottom: 10rpx;
+  font-size: 32rpx;
+  color: #555;
+}
+input {
+  width: 100%;
+  padding: 10rpx;
+  border: 1rpx solid #ccc;
+  border-radius: 10rpx;
+  font-size: 32rpx;
+  box-sizing: border-box;
+}
+.btn-login {
+  width: 100%;
+  margin-top: 40rpx;
+  background-color: #007aff;
+  color: white;
+  border-radius: 30rpx;
+  font-size: 32rpx;
+  padding: 20rpx;
+  border: none;
+}
+.btn-register {
+  display: block;
+  margin-top: 20rpx;
+  color: #007aff;
+  font-size: 28rpx;
+  text-decoration: none;
+}
