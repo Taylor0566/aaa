@@ -1,75 +1,78 @@
 <template>
-  <view class="content-manage">
-    <!-- 筛选栏 -->
-    <view class="filter-bar">
-      <input 
-        v-model="filter.keyword" 
-        placeholder="请输入内容标题搜索" 
-        class="search-input"
-      />
-      <picker v-model="filter.contentType" :range="contentTypeOptions" range-key="label">
-        <view class="type-picker">
-          {{ contentTypeOptions.find(item => item.value === filter.contentType).label }}
-        </view>
-      </picker>
-      <picker v-model="filter.status" :range="statusOptions" range-key="label">
-        <view class="status-picker">
-          {{ statusOptions.find(item => item.value === filter.status).label }}
-        </view>
-      </picker>
-      <view class="date-filter">
-        <picker mode="date" v-model="filter.startDate">
-          <view class="picker-view">开始日期: {{ filter.startDate || '选择日期' }}</view>
+  <AdminLayout current-path="content">
+    <view class="content-manage">
+      <!-- 筛选栏 -->
+      <view class="filter-bar">
+        <input 
+          v-model="filter.keyword" 
+          placeholder="请输入内容标题搜索" 
+          class="search-input"
+        />
+        <picker v-model="filter.contentType" :range="contentTypeOptions" range-key="label">
+          <view class="type-picker">
+            {{ contentTypeOptions.find(item => item.value === filter.contentType).label }}
+          </view>
         </picker>
-        <picker mode="date" v-model="filter.endDate">
-          <view class="picker-view">结束日期: {{ filter.endDate || '选择日期' }}</view>
+        <picker v-model="filter.status" :range="statusOptions" range-key="label">
+          <view class="status-picker">
+            {{ statusOptions.find(item => item.value === filter.status).label }}
+          </view>
         </picker>
-      </view>
-      <button @click="getContentList" class="search-btn">查询</button>
-    </view>
-    
-    <!-- 内容列表 -->
-    <view class="content-list">
-      <view class="list-header">
-        <view class="list-col">标题</view>
-        <view class="list-col">类型</view>
-        <view class="list-col">发布人</view>
-        <view class="list-col">发布时间</view>
-        <view class="list-col">状态</view>
-        <view class="list-col">操作</view>
-      </view>
-      <view class="list-row" v-for="content in contentList" :key="content._id">
-        <view class="list-col">{{ content.title || '无标题' }}</view>
-        <view class="list-col">
-          {{ contentTypeOptions.find(item => item.value === content.content_type)?.label || '未知' }}
+        <view class="date-filter">
+          <picker mode="date" v-model="filter.startDate">
+            <view class="picker-view">开始日期: {{ filter.startDate || '选择日期' }}</view>
+          </picker>
+          <picker mode="date" v-model="filter.endDate">
+            <view class="picker-view">结束日期: {{ filter.endDate || '选择日期' }}</view>
+          </picker>
         </view>
-        <view class="list-col">{{ content.username || '匿名用户' }}</view>
-        <view class="list-col">{{ formatDate(content.created_at) }}</view>
-        <view class="list-col">
-          <text :class="getContentStatusClass(content.status)">
-            {{ statusOptions.find(item => item.value === content.status)?.label || '未知' }}
-          </text>
+        <button @click="getContentList" class="search-btn">查询</button>
+      </view>
+      
+      <!-- 内容列表 -->
+      <view class="content-list">
+        <view class="list-header">
+          <view class="list-col">标题</view>
+          <view class="list-col">类型</view>
+          <view class="list-col">发布人</view>
+          <view class="list-col">发布时间</view>
+          <view class="list-col">状态</view>
+          <view class="list-col">操作</view>
         </view>
-        <view class="list-col">
-          <button size="mini" @click="viewContentDetail(content._id)" class="btn-detail">详情</button>
-          <button size="mini" class="btn-audit" @click="showAuditPopup(content._id, content.status)">审核</button>
-          <button size="mini" class="btn-delete" @click="showDeleteConfirm(content._id)">删除</button>
+        <view class="list-row" v-for="content in contentList" :key="content._id">
+          <view class="list-col">{{ content.title || '无标题' }}</view>
+          <view class="list-col">
+            {{ contentTypeOptions.find(item => item.value === content.content_type)?.label || '未知' }}
+          </view>
+          <view class="list-col">{{ content.username || '匿名用户' }}</view>
+          <view class="list-col">{{ formatDate(content.created_at) }}</view>
+          <view class="list-col">
+            <text :class="getContentStatusClass(content.status)">
+              {{ statusOptions.find(item => item.value === content.status)?.label || '未知' }}
+            </text>
+          </view>
+          <view class="list-col">
+            <button size="mini" @click="viewContentDetail(content._id)" class="btn-detail">详情</button>
+            <button size="mini" class="btn-audit" @click="showAuditPopup(content._id, content.status)">审核</button>
+            <button size="mini" class="btn-delete" @click="showDeleteConfirm(content._id)">删除</button>
+          </view>
         </view>
       </view>
+      
+      <!-- 分页控件 -->
+      <view class="pagination" v-if="total > 0">
+        <button @click="changePage(page - 1)" :disabled="page <= 1">上一页</button>
+        <text>第 {{ page }} / {{ totalPages }} 页</text>
+        <button @click="changePage(page + 1)" :disabled="page >= totalPages">下一页</button>
+      </view>
     </view>
-    
-    <!-- 分页控件 -->
-    <view class="pagination" v-if="total > 0">
-      <button @click="changePage(page - 1)" :disabled="page <= 1">上一页</button>
-      <text>第 {{ page }} / {{ totalPages }} 页</text>
-      <button @click="changePage(page + 1)" :disabled="page >= totalPages">下一页</button>
-    </view>
-  </view>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, reactive } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import AdminLayout from '@/admin/components/AdminLayout.uvue'
 
 // 权限检查
 onShow(() => {
@@ -252,9 +255,8 @@ const formatDate = (timestamp) => {
 
 <style scoped>
 .content-manage {
-  padding: 16rpx;
-  background-color: #f5f5f5;
-  min-height: 100vh;
+  /* 移除 padding，由 layout 接管 */
+  /* min-height: 100vh; 移除，由 layout 接管 */
 }
 
 .filter-bar {

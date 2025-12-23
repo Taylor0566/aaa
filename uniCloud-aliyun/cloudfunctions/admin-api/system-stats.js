@@ -16,10 +16,10 @@ exports.getSystemStats = async (event, context) => {
   yesterday.setDate(yesterday.getDate() - 1)
   
   // 用户总数
-  const totalUsers = await db.collection('uni-id-users').count()
+  const totalUsers = await db.collection('users').count()
   
   // 今日活跃用户数（登录过的用户）
-  const todayActiveUsers = await db.collection('uni-id-users')
+  const todayActiveUsers = await db.collection('users')
     .where({ last_login_time: dbCmd.gte(today.setHours(0, 0, 0, 0)) })
     .count()
   
@@ -89,7 +89,7 @@ exports.getTrendData = async (event, context) => {
     const end = new Date(date)
     end.setDate(end.getDate() + 1)
     
-    return db.collection('uni-id-users')
+    return db.collection('users')
       .where({
         create_time: dbCmd.and(
           dbCmd.gte(start),

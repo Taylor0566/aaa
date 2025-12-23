@@ -1,72 +1,75 @@
 <template>
-  <view class="user-manage">
-    <!-- 筛选栏 -->
-    <view class="filter-bar">
-      <input 
-        v-model="filter.keyword" 
-        placeholder="请输入用户名/邮箱搜索" 
-        class="search-input"
-      />
-      <view class="date-filter">
-        <picker mode="date" v-model="filter.startDate">
-          <view class="picker-view">开始日期: {{ filter.startDate || '选择日期' }}</view>
+  <AdminLayout current-path="user">
+    <view class="user-manage">
+      <!-- 筛选栏 -->
+      <view class="filter-bar">
+        <input 
+          v-model="filter.keyword" 
+          placeholder="请输入用户名/邮箱搜索" 
+          class="search-input"
+        />
+        <view class="date-filter">
+          <picker mode="date" v-model="filter.startDate">
+            <view class="picker-view">开始日期: {{ filter.startDate || '选择日期' }}</view>
+          </picker>
+          <picker mode="date" v-model="filter.endDate">
+            <view class="picker-view">结束日期: {{ filter.endDate || '选择日期' }}</view>
+          </picker>
+        </view>
+        <picker v-model="filter.status" :range="statusOptions" range-key="label">
+          <view class="status-picker">
+            {{ statusOptions.find(item => item.value === filter.status).label }}
+          </view>
         </picker>
-        <picker mode="date" v-model="filter.endDate">
-          <view class="picker-view">结束日期: {{ filter.endDate || '选择日期' }}</view>
-        </picker>
+        <button @click="getUserList" class="search-btn">查询</button>
       </view>
-      <picker v-model="filter.status" :range="statusOptions" range-key="label">
-        <view class="status-picker">
-          {{ statusOptions.find(item => item.value === filter.status).label }}
+      
+      <!-- 用户列表 -->
+      <view class="user-list">
+        <view class="list-header">
+          <view class="list-col">用户名</view>
+          <view class="list-col">邮箱</view>
+          <view class="list-col">注册时间</view>
+          <view class="list-col">状态</view>
+          <view class="list-col">操作</view>
         </view>
-      </picker>
-      <button @click="getUserList" class="search-btn">查询</button>
-    </view>
-    
-    <!-- 用户列表 -->
-    <view class="user-list">
-      <view class="list-header">
-        <view class="list-col">用户名</view>
-        <view class="list-col">邮箱</view>
-        <view class="list-col">注册时间</view>
-        <view class="list-col">状态</view>
-        <view class="list-col">操作</view>
-      </view>
-      <view class="list-row" v-for="user in userList" :key="user._id">
-        <view class="list-col">{{ user.username }}</view>
-        <view class="list-col">{{ user.email || '未设置' }}</view>
-        <view class="list-col">{{ formatDate(user.create_time) }}</view>
-        <view class="list-col">
-          <text :class="user.status === 0 ? 'status-active' : 'status-disabled'">
-            {{ user.status === 0 ? '正常' : '已禁用' }}
-          </text>
-        </view>
-        <view class="list-col">
-          <button size="mini" @click="viewUserDetail(user._id)" class="btn-detail">详情</button>
-          <button 
-            size="mini" 
-            :class="user.status === 0 ? 'btn-disable' : 'btn-enable'"
-            @click="toggleUserStatus(user._id, user.status)"
-          >
-            {{ user.status === 0 ? '禁用' : '启用' }}
-          </button>
-          <button size="mini" class="btn-delete" @click="showDeleteConfirm(user._id)">删除</button>
+        <view class="list-row" v-for="user in userList" :key="user._id">
+          <view class="list-col">{{ user.username }}</view>
+          <view class="list-col">{{ user.email || '未设置' }}</view>
+          <view class="list-col">{{ formatDate(user.create_time) }}</view>
+          <view class="list-col">
+            <text :class="user.status === 0 ? 'status-active' : 'status-disabled'">
+              {{ user.status === 0 ? '正常' : '已禁用' }}
+            </text>
+          </view>
+          <view class="list-col">
+            <button size="mini" @click="viewUserDetail(user._id)" class="btn-detail">详情</button>
+            <button 
+              size="mini" 
+              :class="user.status === 0 ? 'btn-disable' : 'btn-enable'"
+              @click="toggleUserStatus(user._id, user.status)"
+            >
+              {{ user.status === 0 ? '禁用' : '启用' }}
+            </button>
+            <button size="mini" class="btn-delete" @click="showDeleteConfirm(user._id)">删除</button>
+          </view>
         </view>
       </view>
+      
+      <!-- 分页控件 -->
+      <view class="pagination" v-if="total > 0">
+        <button @click="changePage(page - 1)" :disabled="page <= 1">上一页</button>
+        <text>第 {{ page }} / {{ totalPages }} 页</text>
+        <button @click="changePage(page + 1)" :disabled="page >= totalPages">下一页</button>
+      </view>
     </view>
-    
-    <!-- 分页控件 -->
-    <view class="pagination" v-if="total > 0">
-      <button @click="changePage(page - 1)" :disabled="page <= 1">上一页</button>
-      <text>第 {{ page }} / {{ totalPages }} 页</text>
-      <button @click="changePage(page + 1)" :disabled="page >= totalPages">下一页</button>
-    </view>
-  </view>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, reactive } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import AdminLayout from '@/admin/components/AdminLayout.uvue'
 
 // 权限检查
 onShow(() => {
@@ -210,9 +213,8 @@ const formatDate = (timestamp) => {
 
 <style scoped>
 .user-manage {
-  padding: 16rpx;
-  background-color: #f5f5f5;
-  min-height: 100vh;
+  /* 移除 padding，由 layout 接管 */
+  /* min-height: 100vh; 移除，由 layout 接管 */
 }
 
 .filter-bar {

@@ -1,40 +1,56 @@
 <template>
-  <view class="dashboard">
-    <!-- 核心统计卡片 -->
-    <view class="stats-container">
-      <view class="stat-card">
-        <view class="stat-title">总用户数</view>
-        <view class="stat-value">{{ userStats.total }}</view>
-        <view class="stat-sub">今日活跃: {{ userStats.dailyActive }}</view>
+  <AdminLayout current-path="dashboard">
+    <view class="dashboard">
+      <!-- 核心统计卡片 -->
+      <view class="stats-container">
+        <view class="stat-card apple-card">
+          <view class="stat-icon user-icon">👥</view>
+          <view class="stat-content">
+            <view class="stat-title">总用户数</view>
+            <view class="stat-value">{{ userStats.total }}</view>
+            <view class="stat-sub">今日活跃: {{ userStats.dailyActive }}</view>
+          </view>
+        </view>
+        
+        <view class="stat-card apple-card">
+          <view class="stat-icon content-icon">📝</view>
+          <view class="stat-content">
+            <view class="stat-title">总内容数</view>
+            <view class="stat-value">{{ contentStats.total }}</view>
+            <view class="stat-sub">今日新增: {{ contentStats.dailyNew }}</view>
+          </view>
+        </view>
+        
+        <view class="stat-card apple-card">
+          <view class="stat-icon comment-icon">💬</view>
+          <view class="stat-content">
+            <view class="stat-title">总评论数</view>
+            <view class="stat-value">{{ commentStats.total }}</view>
+            <view class="stat-sub">平均评分: {{ ratingStats.average }}</view>
+          </view>
+        </view>
       </view>
       
-      <view class="stat-card">
-        <view class="stat-title">总内容数</view>
-        <view class="stat-value">{{ contentStats.total }}</view>
-        <view class="stat-sub">今日新增: {{ contentStats.dailyNew }}</view>
-      </view>
-      
-      <view class="stat-card">
-        <view class="stat-title">总评论数</view>
-        <view class="stat-value">{{ commentStats.total }}</view>
-        <view class="stat-sub">平均评分: {{ ratingStats.average }}</view>
-      </view>
-    </view>
-    
-    <!-- 趋势图表 -->
-    <view class="chart-container">
-      <view class="chart-title">数据趋势 (近30天)</view>
-      <view class="chart-placeholder">
-        <text>图表功能暂未启用</text>
-        <text class="chart-tip">如需图表，请安装 echarts 插件</text>
+      <!-- 趋势图表 -->
+      <view class="chart-container apple-card">
+        <view class="chart-header">
+          <view class="chart-title">数据趋势</view>
+          <view class="chart-period">近30天</view>
+        </view>
+        <view class="chart-placeholder">
+          <text class="placeholder-icon">📉</text>
+          <text class="placeholder-text">图表功能暂未启用</text>
+          <text class="chart-tip">如需图表，请安装 echarts 插件</text>
+        </view>
       </view>
     </view>
-  </view>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import AdminLayout from '@/admin/components/AdminLayout.uvue'
 
 // 权限检查
 onShow(() => {
@@ -106,76 +122,126 @@ const getTrendData = async () => {
 
 <style scoped>
 .dashboard {
-  padding: 16rpx;
-  background-color: #f5f5f5;
-  min-height: 100vh;
+  /* 移除 padding，由 layout 接管 */
+  /* min-height: 100vh; 移除，由 layout 接管 */
 }
 
 .stats-container {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16rpx;
-  margin-bottom: 24rpx;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24rpx;
+  margin-bottom: 32rpx;
 }
 
 .stat-card {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 32rpx;
+}
+
+.stat-icon {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  flex-shrink: 0;
+}
+
+.user-icon {
+  background-color: rgba(0, 113, 227, 0.1);
+  color: #0071e3;
+}
+
+.content-icon {
+  background-color: rgba(52, 199, 89, 0.1);
+  color: #34c759;
+}
+
+.comment-icon {
+  background-color: rgba(255, 149, 0, 0.1);
+  color: #ff9500;
+}
+
+.stat-content {
   flex: 1;
-  min-width: 250rpx;
-  background-color: #fff;
-  border-radius: 8rpx;
-  padding: 16rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
 }
 
 .stat-title {
-  font-size: 28rpx;
-  color: #666;
+  font-size: 26rpx;
+  color: #86868b;
   margin-bottom: 8rpx;
+  font-weight: 500;
 }
 
 .stat-value {
-  font-size: 56rpx;
-  font-weight: bold;
-  color: #333;
+  font-size: 48rpx;
+  font-weight: 600;
+  color: #1d1d1f;
   margin-bottom: 4rpx;
+  letter-spacing: -1px;
 }
 
 .stat-sub {
   font-size: 24rpx;
-  color: #999;
+  color: #86868b;
 }
 
 .chart-container {
-  background-color: #fff;
-  border-radius: 8rpx;
-  padding: 16rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+  padding: 32rpx;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
 }
 
 .chart-title {
   font-size: 32rpx;
-  font-weight: bold;
-  margin-bottom: 16rpx;
-  color: #333;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.chart-period {
+  font-size: 24rpx;
+  color: #86868b;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 4rpx 16rpx;
+  border-radius: 12rpx;
 }
 
 .chart-placeholder {
   width: 100%;
-  height: 300rpx;
+  height: 400rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #999;
+  background-color: #f5f5f7;
+  border-radius: 18rpx;
+  border: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+.placeholder-icon {
+  font-size: 64rpx;
+  margin-bottom: 16rpx;
+  opacity: 0.5;
+}
+
+.placeholder-text {
   font-size: 28rpx;
-  background-color: #f9f9f9;
-  border-radius: 8rpx;
+  color: #1d1d1f;
+  font-weight: 500;
+  margin-bottom: 8rpx;
 }
 
 .chart-tip {
   font-size: 24rpx;
-  color: #ccc;
-  margin-top: 10rpx;
+  color: #86868b;
 }
 </style>

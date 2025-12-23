@@ -1,0 +1,88 @@
+<template>
+  <view class="admin-tab-bar">
+    <view 
+      class="tab-item" 
+      :class="{ active: currentPath === 'dashboard' }"
+      @click="switchTab('dashboard')"
+    >
+      <text class="tab-text">概览</text>
+    </view>
+    <view 
+      class="tab-item" 
+      :class="{ active: currentPath === 'user' }"
+      @click="switchTab('user')"
+    >
+      <text class="tab-text">用户</text>
+    </view>
+    <view 
+      class="tab-item" 
+      :class="{ active: currentPath === 'content' }"
+      @click="switchTab('content')"
+    >
+      <text class="tab-text">内容</text>
+    </view>
+  </view>
+</template>
+
+<script setup>
+  const props = defineProps({
+    currentPath: {
+      type: String,
+      default: 'dashboard'
+    }
+  })
+
+  const switchTab = (path) => {
+    if (path === props.currentPath) return
+    
+    let url = ''
+    switch (path) {
+      case 'dashboard':
+        url = '/admin/pages/dashboard/dashboard'
+        break
+      case 'user':
+        url = '/admin/pages/user/user'
+        break
+      case 'content':
+        url = '/admin/pages/content/content'
+        break
+    }
+    
+    uni.reLaunch({ url })
+  }
+</script>
+
+<style scoped>
+  .admin-tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100rpx;
+    background-color: #fff;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 1rpx solid #eee;
+    z-index: 999;
+    box-shadow: 0 -2rpx 10rpx rgba(0,0,0,0.05);
+  }
+
+  .tab-item {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .tab-text {
+    font-size: 28rpx;
+    color: #999;
+  }
+
+  .active .tab-text {
+    color: #007aff;
+    font-weight: bold;
+  }
+</style>
