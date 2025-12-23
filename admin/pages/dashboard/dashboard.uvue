@@ -1,46 +1,57 @@
 <template>
-  <AdminLayout current-path="dashboard">
-    <view class="dashboard">
+  <AdminLayout current-path="dashboard" page-title="系统概览">
+    <view class="dashboard-content">
       <!-- 核心统计卡片 -->
       <view class="stats-container">
-        <view class="stat-card apple-card">
+        <view class="stat-card">
           <view class="stat-icon user-icon">👥</view>
-          <view class="stat-content">
+          <view class="stat-info">
             <view class="stat-title">总用户数</view>
             <view class="stat-value">{{ userStats.total }}</view>
-            <view class="stat-sub">今日活跃: {{ userStats.dailyActive }}</view>
+            <view class="stat-sub">
+              <text class="trend up">↑ {{ userStats.dailyActive }}</text>
+              <text class="sub-label">今日活跃</text>
+            </view>
           </view>
         </view>
         
-        <view class="stat-card apple-card">
+        <view class="stat-card">
           <view class="stat-icon content-icon">📝</view>
-          <view class="stat-content">
+          <view class="stat-info">
             <view class="stat-title">总内容数</view>
             <view class="stat-value">{{ contentStats.total }}</view>
-            <view class="stat-sub">今日新增: {{ contentStats.dailyNew }}</view>
+            <view class="stat-sub">
+              <text class="trend up">↑ {{ contentStats.dailyNew }}</text>
+              <text class="sub-label">今日新增</text>
+            </view>
           </view>
         </view>
         
-        <view class="stat-card apple-card">
+        <view class="stat-card">
           <view class="stat-icon comment-icon">💬</view>
-          <view class="stat-content">
+          <view class="stat-info">
             <view class="stat-title">总评论数</view>
             <view class="stat-value">{{ commentStats.total }}</view>
-            <view class="stat-sub">平均评分: {{ ratingStats.average }}</view>
+            <view class="stat-sub">
+              <text class="trend">⭐ {{ ratingStats.average }}</text>
+              <text class="sub-label">平均评分</text>
+            </view>
           </view>
         </view>
       </view>
       
       <!-- 趋势图表 -->
-      <view class="chart-container apple-card">
-        <view class="chart-header">
-          <view class="chart-title">数据趋势</view>
-          <view class="chart-period">近30天</view>
+      <view class="chart-section">
+        <view class="section-header">
+          <text class="section-title">数据趋势分析</text>
+          <view class="date-range">近30天</view>
         </view>
-        <view class="chart-placeholder">
-          <text class="placeholder-icon">📉</text>
-          <text class="placeholder-text">图表功能暂未启用</text>
-          <text class="chart-tip">如需图表，请安装 echarts 插件</text>
+        <view class="chart-box">
+          <view class="chart-placeholder">
+            <text class="placeholder-icon">📊</text>
+            <text class="placeholder-text">图表功能暂未启用</text>
+            <text class="placeholder-tip">如需图表，请安装 echarts 插件</text>
+          </view>
         </view>
       </view>
     </view>
@@ -66,6 +77,7 @@ const contentStats = ref({ total: 0, dailyNew: 0 })
 const commentStats = ref({ total: 0 })
 const ratingStats = ref({ average: 0 })
 const trendData = ref({ dates: [], trends: {} })
+const chart = ref(null)
 
 // 页面加载时获取数据
 onLoad(async () => {
@@ -111,6 +123,7 @@ const getTrendData = async () => {
     })
     if (res.result.code === 200) {
       trendData.value = res.result.data
+      initChart() // 获取数据后初始化图表
     } else {
       uni.showToast({ title: res.result.message, icon: 'none' })
     }
@@ -118,130 +131,150 @@ const getTrendData = async () => {
     uni.showToast({ title: '获取趋势数据失败', icon: 'none' })
   }
 }
+
+// 图表初始化回调
+const onChartInit = (canvas, width, height) => {
+  // chart.value = echarts.init(canvas, null, { width, height })
+  // canvas.setChart(chart.value)
+  // initChart()
+}
+
+// 初始化图表配置
+const initChart = () => {
+  // ...
+}
 </script>
 
 <style scoped>
-.dashboard {
-  /* 移除 padding，由 layout 接管 */
-  /* min-height: 100vh; 移除，由 layout 接管 */
-}
-
 .stats-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24rpx;
-  margin-bottom: 32rpx;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
 }
 
 .stat-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
-  align-items: center;
-  gap: 20rpx;
-  padding: 32rpx;
+  align-items: flex-start;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .stat-icon {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40rpx;
-  flex-shrink: 0;
+  font-size: 24px;
+  margin-right: 16px;
 }
 
-.user-icon {
-  background-color: rgba(0, 113, 227, 0.1);
-  color: #0071e3;
-}
+.user-icon { background-color: #e6f7ff; color: #1890ff; }
+.content-icon { background-color: #f6ffed; color: #52c41a; }
+.comment-icon { background-color: #fff7e6; color: #fa8c16; }
 
-.content-icon {
-  background-color: rgba(52, 199, 89, 0.1);
-  color: #34c759;
-}
-
-.comment-icon {
-  background-color: rgba(255, 149, 0, 0.1);
-  color: #ff9500;
-}
-
-.stat-content {
+.stat-info {
   flex: 1;
 }
 
 .stat-title {
-  font-size: 26rpx;
-  color: #86868b;
-  margin-bottom: 8rpx;
-  font-weight: 500;
+  font-size: 14px;
+  color: #8c8c8c;
+  margin-bottom: 8px;
 }
 
 .stat-value {
-  font-size: 48rpx;
+  font-size: 32px;
   font-weight: 600;
-  color: #1d1d1f;
-  margin-bottom: 4rpx;
-  letter-spacing: -1px;
+  color: #262626;
+  margin-bottom: 8px;
+  line-height: 1.2;
 }
 
 .stat-sub {
-  font-size: 24rpx;
-  color: #86868b;
+  font-size: 12px;
+  color: #8c8c8c;
+  display: flex;
+  align-items: center;
 }
 
-.chart-container {
-  padding: 32rpx;
+.trend {
+  margin-right: 8px;
+  font-weight: 500;
 }
 
-.chart-header {
+.trend.up { color: #52c41a; }
+.trend.down { color: #ff4d4f; }
+
+.chart-section {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24rpx;
+  margin-bottom: 24px;
 }
 
-.chart-title {
-  font-size: 32rpx;
+.section-title {
+  font-size: 18px;
   font-weight: 600;
-  color: #1d1d1f;
+  color: #262626;
 }
 
-.chart-period {
-  font-size: 24rpx;
-  color: #86868b;
-  background-color: rgba(0, 0, 0, 0.05);
-  padding: 4rpx 16rpx;
-  border-radius: 12rpx;
+.date-range {
+  font-size: 14px;
+  color: #8c8c8c;
+  background-color: #f5f5f5;
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+
+.chart-box {
+  height: 400px;
+  background-color: #fcfcfc;
+  border-radius: 8px;
+  border: 1px dashed #e8e8e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .chart-placeholder {
-  width: 100%;
-  height: 400rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #f5f5f7;
-  border-radius: 18rpx;
-  border: 1px dashed rgba(0, 0, 0, 0.1);
 }
 
 .placeholder-icon {
-  font-size: 64rpx;
-  margin-bottom: 16rpx;
+  font-size: 48px;
+  margin-bottom: 16px;
   opacity: 0.5;
 }
 
 .placeholder-text {
-  font-size: 28rpx;
-  color: #1d1d1f;
-  font-weight: 500;
-  margin-bottom: 8rpx;
+  font-size: 16px;
+  color: #595959;
+  margin-bottom: 8px;
 }
 
-.chart-tip {
-  font-size: 24rpx;
-  color: #86868b;
+.placeholder-tip {
+  font-size: 14px;
+  color: #bfbfbf;
 }
 </style>

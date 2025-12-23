@@ -1,67 +1,95 @@
 <template>
-  <AdminLayout current-path="user">
+  <AdminLayout current-path="user" page-title="用户管理">
     <view class="user-manage">
       <!-- 筛选栏 -->
-      <view class="filter-bar">
-        <input 
-          v-model="filter.keyword" 
-          placeholder="请输入用户名/邮箱搜索" 
-          class="search-input"
-        />
-        <view class="date-filter">
+      <view class="filter-card">
+        <view class="filter-item search-box">
+          <text class="iconfont search-icon">🔍</text>
+          <input 
+            v-model="filter.keyword" 
+            placeholder="请输入用户名/邮箱搜索" 
+            class="search-input"
+          />
+        </view>
+        
+        <view class="filter-item date-range">
           <picker mode="date" v-model="filter.startDate">
-            <view class="picker-view">开始日期: {{ filter.startDate || '选择日期' }}</view>
+            <view class="date-picker">{{ filter.startDate || '开始日期' }}</view>
           </picker>
+          <text class="date-separator">-</text>
           <picker mode="date" v-model="filter.endDate">
-            <view class="picker-view">结束日期: {{ filter.endDate || '选择日期' }}</view>
+            <view class="date-picker">{{ filter.endDate || '结束日期' }}</view>
           </picker>
         </view>
-        <picker v-model="filter.status" :range="statusOptions" range-key="label">
-          <view class="status-picker">
-            {{ statusOptions.find(item => item.value === filter.status).label }}
-          </view>
-        </picker>
-        <button @click="getUserList" class="search-btn">查询</button>
+        
+        <view class="filter-item">
+          <picker v-model="filter.status" :range="statusOptions" range-key="label">
+            <view class="select-box">
+              {{ statusOptions.find(item => item.value === filter.status).label }}
+              <text class="arrow">▼</text>
+            </view>
+          </picker>
+        </view>
+        
+        <button @click="getUserList" class="btn btn-primary">查询</button>
       </view>
       
       <!-- 用户列表 -->
-      <view class="user-list">
-        <view class="list-header">
-          <view class="list-col">用户名</view>
-          <view class="list-col">邮箱</view>
-          <view class="list-col">注册时间</view>
-          <view class="list-col">状态</view>
-          <view class="list-col">操作</view>
+      <view class="table-card">
+        <view class="table-header">
+          <view class="col col-user">用户信息</view>
+          <view class="col col-date">注册时间</view>
+          <view class="col col-status">状态</view>
+          <view class="col col-action">操作</view>
         </view>
-        <view class="list-row" v-for="user in userList" :key="user._id">
-          <view class="list-col">{{ user.username }}</view>
-          <view class="list-col">{{ user.email || '未设置' }}</view>
-          <view class="list-col">{{ formatDate(user.create_time) }}</view>
-          <view class="list-col">
-            <text :class="user.status === 0 ? 'status-active' : 'status-disabled'">
-              {{ user.status === 0 ? '正常' : '已禁用' }}
-            </text>
+        
+        <view class="table-body">
+          <view class="table-row" v-for="user in userList" :key="user._id">
+            <view class="col col-user">
+              <view class="user-cell">
+                <view class="user-avatar">{{ user.username.charAt(0).toUpperCase() }}</view>
+                <view class="user-info">
+                  <text class="username">{{ user.username }}</text>
+                  <text class="email">{{ user.email || '未绑定邮箱' }}</text>
+                </view>
+              </view>
+            </view>
+            <view class="col col-date">{{ formatDate(user.create_time) }}</view>
+            <view class="col col-status">
+              <text class="status-badge" :class="user.status === 0 ? 'active' : 'disabled'">
+                {{ user.status === 0 ? '正常' : '已禁用' }}
+              </text>
+            </view>
+            <view class="col col-action">
+              <text class="link-btn primary" @click="viewUserDetail(user._id)">详情</text>
+              <text class="link-btn warning" @click="toggleUserStatus(user._id, user.status)">
+                {{ user.status === 0 ? '禁用' : '启用' }}
+              </text>
+              <text class="link-btn danger" @click="showDeleteConfirm(user._id)">删除</text>
+            </view>
           </view>
-          <view class="list-col">
-            <button size="mini" @click="viewUserDetail(user._id)" class="btn-detail">详情</button>
-            <button 
-              size="mini" 
-              :class="user.status === 0 ? 'btn-disable' : 'btn-enable'"
-              @click="toggleUserStatus(user._id, user.status)"
-            >
-              {{ user.status === 0 ? '禁用' : '启用' }}
-            </button>
-            <button size="mini" class="btn-delete" @click="showDeleteConfirm(user._id)">删除</button>
+        </view>
+        
+        <!-- 分页控件 -->
+        <view class="pagination-container" v-if="total > 0">
+          <text class="total-text">共 {{ total }} 条数据</text>
+          <view class="page-ctrl">
+            <button class="page-btn" @click="changePage(page - 1)" :disabled="page <= 1">上一页</button>
+            <text class="page-num">{{ page }} / {{ totalPages }}</text>
+            <button class="page-btn" @click="changePage(page + 1)" :disabled="page >= totalPages">下一页</button>
           </view>
         </view>
       </view>
       
-      <!-- 分页控件 -->
-      <view class="pagination" v-if="total > 0">
-        <button @click="changePage(page - 1)" :disabled="page <= 1">上一页</button>
-        <text>第 {{ page }} / {{ totalPages }} 页</text>
-        <button @click="changePage(page + 1)" :disabled="page >= totalPages">下一页</button>
-      </view>
+      <!-- 删除确认弹窗 (保持原有) -->
+      <uni-popup ref="deletePopup" type="dialog">
+        <uni-popup-dialog 
+          title="删除确认" 
+          content="确定要删除该用户吗？此操作不可恢复，将同步删除用户发布的内容和评论！"
+          @confirm="confirmDelete"
+          @cancel="cancelDelete"
+        ></uni-popup-dialog>
+      </uni-popup>
     </view>
   </AdminLayout>
 </template>
@@ -71,11 +99,12 @@ import { ref, reactive } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import AdminLayout from '@/admin/components/AdminLayout.uvue'
 
+// ... (keep logic)
 // 权限检查
 onShow(() => {
   const token = uni.getStorageSync('adminToken')
   if (!token) {
-    uni.reLaunch({ url: '/admin/pages/login/login' })
+    uni.reLaunch({ url: '/pages/login/login' })
   }
 })
 
@@ -100,6 +129,8 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const totalPages = ref(0)
+const deleteUserId = ref('')
+const deletePopup = ref(null)
 
 // 页面加载获取用户列表
 onLoad(() => {
@@ -162,38 +193,41 @@ const toggleUserStatus = async (userId, currentStatus) => {
 
 // 查看用户详情
 const viewUserDetail = (userId) => {
-  uni.navigateTo({ url: `/admin/pages/user/detail?userId=${userId}` })
+  uni.navigateTo({ url: `/pages/admin/user/detail?userId=${userId}` })
 }
 
 // 显示删除确认弹窗
 const showDeleteConfirm = (userId) => {
-  uni.showModal({
-    title: '删除确认',
-    content: '确定要删除该用户吗？此操作不可恢复，将同步删除用户发布的内容和评论！',
-    confirmText: '删除',
-    confirmColor: '#ff3b30',
-    success: async (res) => {
-      if (!res.confirm) return
-      try {
-        const callRes = await uniCloud.callFunction({
-          name: 'admin-api',
-          data: {
-            action: 'deleteUser',
-            user_id: userId,
-            token: uni.getStorageSync('adminToken')
-          }
-        })
-        if (callRes.result.code === 200) {
-          uni.showToast({ title: '用户删除成功', icon: 'success' })
-          getUserList()
-          return
-        }
-        uni.showToast({ title: callRes.result.message, icon: 'none' })
-      } catch (e) {
-        uni.showToast({ title: '删除用户失败', icon: 'none' })
+  deleteUserId.value = userId
+  deletePopup.value.open()
+}
+
+// 确认删除用户
+const confirmDelete = async () => {
+  try {
+    const res = await uniCloud.callFunction({
+      name: 'admin-api',
+      data: {
+        action: 'deleteUser',
+        user_id: deleteUserId.value,
+        token: uni.getStorageSync('adminToken')
       }
+    })
+    if (res.result.code === 200) {
+      uni.showToast({ title: '用户删除成功', icon: 'success' })
+      deletePopup.value.close()
+      getUserList() // 刷新列表
+    } else {
+      uni.showToast({ title: res.result.message, icon: 'none' })
     }
-  })
+  } catch (e) {
+    uni.showToast({ title: '删除用户失败', icon: 'none' })
+  }
+}
+
+// 取消删除
+const cancelDelete = () => {
+  deletePopup.value.close()
 }
 
 // 切换页码
@@ -212,140 +246,234 @@ const formatDate = (timestamp) => {
 </script>
 
 <style scoped>
-.user-manage {
-  /* 移除 padding，由 layout 接管 */
-  /* min-height: 100vh; 移除，由 layout 接管 */
-}
-
-.filter-bar {
+.filter-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
-  padding: 20rpx;
-  background-color: #fff;
-  border-radius: 12rpx;
-  margin-bottom: 20rpx;
+  gap: 16px;
   align-items: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+}
+
+.search-box {
+  background-color: #f5f5f7;
+  border-radius: 8px;
+  padding: 0 12px;
+  height: 40px;
+  width: 300px;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  color: #999;
+  margin-right: 8px;
 }
 
 .search-input {
   flex: 1;
-  height: 80rpx;
-  padding: 0 20rpx;
-  border: 1rpx solid #e5e5e5;
-  border-radius: 40rpx;
-  font-size: 28rpx;
+  font-size: 14px;
+  color: #333;
 }
 
-.date-filter {
-  display: flex;
-  gap: 16rpx;
-  align-items: center;
+.date-range {
+  background-color: #f5f5f7;
+  border-radius: 8px;
+  padding: 0 12px;
+  height: 40px;
 }
 
-.picker-view, .status-picker {
-  font-size: 28rpx;
+.date-picker {
+  font-size: 14px;
   color: #666;
-  padding: 0 16rpx;
-  height: 80rpx;
-  border: 1rpx solid #e5e5e5;
-  border-radius: 40rpx;
-  display: flex;
-  align-items: center;
-  min-width: 160rpx;
-  justify-content: center;
+  padding: 0 8px;
+  cursor: pointer;
 }
 
-.search-btn {
-  height: 80rpx;
-  padding: 0 32rpx;
-  background-color: #007aff;
-  color: #fff;
-  border-radius: 40rpx;
-  font-size: 28rpx;
-}
-
-.user-list {
-  background-color: #fff;
-  border-radius: 12rpx;
-  overflow: hidden;
-  margin-bottom: 20rpx;
-}
-
-.list-header {
-  display: flex;
-  background-color: #f9f9f9;
-  border-bottom: 1rpx solid #e5e5e5;
-}
-
-.list-row {
-  display: flex;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
-.list-col {
-  flex: 1;
-  padding: 24rpx 16rpx;
-  text-align: center;
-  font-size: 28rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  word-break: break-all;
-}
-
-.status-active {
-  color: #4cd964;
-}
-
-.status-disabled {
-  color: #ff3b30;
-}
-
-.btn-detail {
-  background-color: #007aff;
-  color: #fff;
-  margin: 0 8rpx;
-}
-
-.btn-disable {
-  background-color: #ff9500;
-  color: #fff;
-  margin: 0 8rpx;
-}
-
-.btn-enable {
-  background-color: #4cd964;
-  color: #fff;
-  margin: 0 8rpx;
-}
-
-.btn-delete {
-  background-color: #ff3b30;
-  color: #fff;
-  margin: 0 8rpx;
-}
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 24rpx;
-  padding: 20rpx;
-  background-color: #fff;
-  border-radius: 12rpx;
-  font-size: 28rpx;
-}
-
-.pagination button {
-  padding: 16rpx 32rpx;
-  border-radius: 8rpx;
-  background-color: #007aff;
-  color: #fff;
-}
-
-.pagination button:disabled {
-  background-color: #e5e5e5;
+.date-separator {
   color: #999;
+  margin: 0 8px;
+}
+
+.select-box {
+  background-color: #f5f5f7;
+  border-radius: 8px;
+  padding: 0 12px;
+  height: 40px;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+}
+
+.arrow {
+  font-size: 12px;
+  color: #999;
+  margin-left: 8px;
+}
+
+.btn {
+  height: 40px;
+  padding: 0 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn:hover { opacity: 0.9; }
+.btn-primary { background-color: #007aff; color: #fff; }
+
+.table-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.table-header {
+  display: flex;
+  padding: 12px 16px;
+  background-color: #f9f9fa;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #888;
+  font-size: 13px;
+}
+
+.table-row {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background 0.2s;
+}
+
+.table-row:hover {
+  background-color: #f5f5f7;
+}
+
+.col { flex: 1; }
+.col-user { flex: 2; }
+.col-date { flex: 1.5; color: #666; font-size: 14px; }
+.col-status { flex: 1; }
+.col-action { flex: 1.5; text-align: right; }
+
+.user-cell {
+  display: flex;
+  align-items: center;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  background-color: #007aff;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  margin-right: 12px;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.username {
+  font-size: 15px;
+  font-weight: 500;
+  color: #333;
+}
+
+.email {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.active { background-color: #e6f7ff; color: #007aff; }
+.status-badge.disabled { background-color: #fff0f0; color: #ff3b30; }
+
+.link-btn {
+  font-size: 14px;
+  margin-left: 16px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.link-btn:hover { text-decoration: underline; }
+.link-btn.primary { color: #007aff; }
+.link-btn.warning { color: #ff9500; }
+.link-btn.danger { color: #ff3b30; }
+
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f5f5f5;
+}
+
+.total-text {
+  font-size: 14px;
+  color: #999;
+}
+
+.page-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-btn {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 6px;
+  background-color: #fff;
+  border: 1px solid #e5e5e5;
+  font-size: 13px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-num {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
 }
 </style>

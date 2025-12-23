@@ -1,287 +1,98 @@
 <template>
   <view class="admin-layout">
-    <!-- 左侧侧边栏 -->
-    <view class="sidebar">
-      <view class="logo-area">
-        <text class="logo-icon">⚡️</text>
-        <text class="logo-text">管理后台</text>
-      </view>
+    <!-- PC 端侧边栏 -->
+    <view class="layout-sidebar">
+      <AdminSidebar :current-path="currentPath" />
+    </view>
+    
+    <!-- 主内容区 -->
+    <view class="layout-main">
+      <AdminHeader :title="pageTitle" />
       
-      <view class="nav-menu">
-        <view 
-          class="nav-item" 
-          :class="{ active: currentPath === 'dashboard' }"
-          @click="switchPage('dashboard')"
-        >
-          <text class="nav-icon">📊</text>
-          <text class="nav-text">系统概览</text>
-        </view>
-        <view 
-          class="nav-item" 
-          :class="{ active: currentPath === 'user' }"
-          @click="switchPage('user')"
-        >
-          <text class="nav-icon">👥</text>
-          <text class="nav-text">用户管理</text>
-        </view>
-        <view 
-          class="nav-item" 
-          :class="{ active: currentPath === 'content' }"
-          @click="switchPage('content')"
-        >
-          <text class="nav-icon">📝</text>
-          <text class="nav-text">内容管理</text>
+      <view class="layout-content">
+        <view class="content-wrapper">
+          <slot></slot>
         </view>
       </view>
     </view>
-
-    <!-- 右侧主体内容 -->
-    <view class="main-container">
-      <!-- 顶部 Header -->
-      <view class="header">
-        <view class="breadcrumb">
-          <text class="page-title">{{ getPageName() }}</text>
-        </view>
-        <view class="user-area">
-          <text class="username">管理员</text>
-          <view class="btn-logout" @click="handleLogout">
-            <text>退出</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 内容区域 -->
-      <scroll-view class="content-scroll" scroll-y>
-        <view class="page-content">
-          <slot></slot>
-        </view>
-      </scroll-view>
+    
+    <!-- 移动端底部导航（仅在小屏显示） -->
+    <view class="layout-tabbar">
+      <AdminTabBar :current-path="currentPath" />
     </view>
   </view>
 </template>
 
 <script setup>
-  import { defineProps } from 'vue'
-
+  import AdminSidebar from './AdminSidebar.uvue'
+  import AdminHeader from './AdminHeader.uvue'
+  import AdminTabBar from './AdminTabBar.uvue'
+  
   const props = defineProps({
     currentPath: {
       type: String,
-      default: 'dashboard'
+      required: true
+    },
+    pageTitle: {
+      type: String,
+      default: ''
     }
   })
-
-  const switchPage = (path) => {
-    if (path === props.currentPath) return
-    
-    let url = ''
-    switch (path) {
-      case 'dashboard':
-        url = '/admin/pages/dashboard/dashboard'
-        break
-      case 'user':
-        url = '/admin/pages/user/user'
-        break
-      case 'content':
-        url = '/admin/pages/content/content'
-        break
-    }
-    uni.reLaunch({ url })
-  }
-
-  const getPageName = () => {
-    const map = {
-      'dashboard': '系统概览',
-      'user': '用户管理',
-      'content': '内容管理'
-    }
-    return map[props.currentPath] || '后台管理'
-  }
-
-  const handleLogout = () => {
-    uni.showModal({
-      title: '确认退出',
-      content: '确定要退出登录吗？',
-      success: (res) => {
-        if (res.confirm) {
-          uni.removeStorageSync('adminToken')
-          uni.removeStorageSync('adminUser')
-          uni.reLaunch({ url: '/admin/pages/login/login' })
-        }
-      }
-    })
-  }
 </script>
 
 <style scoped>
-  /* Apple 风格布局重构 */
   .admin-layout {
     display: flex;
-    width: 100vw;
-    height: 100vh;
-    background-color: #f5f5f7; /* Apple 浅灰背景 */
-    overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    background-color: #f5f5f7;
   }
 
-  /* 侧边栏：毛玻璃效果 + 响应式 */
-  .sidebar {
-    width: 280px;
-    height: 100%;
-    background-color: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-right: 1px solid rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
+  .layout-sidebar {
+    width: 240px;
     flex-shrink: 0;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 100;
+    display: none; /* 默认隐藏，PC显示 */
   }
 
-  /* 移动端侧边栏适配 */
-  @media (max-width: 768px) {
-    .sidebar {
-      position: absolute;
-      transform: translateX(-100%);
-      width: 240px;
-      height: 100%;
-      background-color: rgba(255, 255, 255, 0.95);
-    }
-    
-    .sidebar.open {
-      transform: translateX(0);
-    }
-  }
-
-  .logo-area {
-    height: 80px;
-    display: flex;
-    align-items: center;
-    padding: 0 32px;
-    background-color: transparent;
-  }
-
-  .logo-text {
-    font-size: 20px;
-    font-weight: 600;
-    color: #1d1d1f;
-    letter-spacing: -0.5px;
-  }
-
-  .nav-menu {
-    flex: 1;
-    padding: 20px 16px;
-  }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    height: 44px;
-    padding: 0 16px;
-    margin-bottom: 4px;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: #86868b;
-  }
-
-  .nav-item:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-    color: #1d1d1f;
-  }
-
-  .nav-item.active {
-    background-color: #0071e3;
-    color: #fff;
-  }
-
-  .nav-icon {
-    margin-right: 12px;
-    font-size: 18px;
-  }
-
-  .nav-text {
-    font-size: 15px;
-    font-weight: 500;
-  }
-
-  /* 主体区域 */
-  .main-container {
+  .layout-main {
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    position: relative;
-    height: 100vh; /* 强制占满高度 */
-    min-width: 0; /* 防止 flex 子项溢出 */
-  }
-
-  .header {
-    height: 60px;
-    background-color: rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 32px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    flex-shrink: 0;
-  }
-
-  .page-title {
-    font-size: 24px;
-    font-weight: 600;
-    color: #1d1d1f;
-    letter-spacing: -0.5px;
-  }
-
-  .user-area {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .username {
-    font-size: 14px;
-    color: #1d1d1f;
-    font-weight: 500;
-  }
-
-  .btn-logout {
-    font-size: 13px;
-    color: #0071e3;
-    cursor: pointer;
-    padding: 6px 12px;
-    border-radius: 14px;
-    background-color: rgba(0, 113, 227, 0.1);
-    transition: all 0.2s;
+    min-width: 0; /* 防止内容溢出 */
   }
   
-  .btn-logout:hover {
-    background-color: rgba(0, 113, 227, 0.2);
-  }
-
-  /* 内容区域滚动 */
-  .content-scroll {
+  .layout-content {
     flex: 1;
-    height: 0;
+    padding: 24px 32px;
+    overflow-y: auto;
   }
-
-  .page-content {
-    padding: 32px;
+  
+  .content-wrapper {
     max-width: 1200px;
     margin: 0 auto;
-    box-sizing: border-box;
+    width: 100%;
   }
 
-  @media (max-width: 768px) {
-    .page-content {
-      padding: 16px;
+  .layout-tabbar {
+    display: block; /* 默认显示，PC隐藏 */
+  }
+
+  /* 响应式媒体查询：PC端布局 */
+  @media screen and (min-width: 1024px) {
+    .layout-sidebar {
+      display: block;
     }
     
-    .header {
-      padding: 0 16px;
+    .layout-tabbar {
+      display: none;
     }
+    
+    /* 调整主内容区，使其不被侧边栏遮挡（虽然flex布局已经处理了，但为了保险） */
+    .layout-main {
+      margin-left: 240px; 
+    }
+    
+    /* 由于 Sidebar 是 fixed，需要给 main 加 margin-left */
+    /* Wait, flex item doesn't need margin if sidebar is relative. 
+       But sidebar is fixed in css. So we need margin. */
   }
 </style>
