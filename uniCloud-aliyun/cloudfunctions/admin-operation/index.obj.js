@@ -126,7 +126,7 @@ module.exports = {
 	async deleteUser(userId) {
 		if (!userId) throw new Error('缺少用户ID')
 		const db = uniCloud.database()
-		await db.collection('uni-id-users').doc(userId).remove()
+		await db.collection('users').doc(userId).remove() // 修正集合名称
 		return { success: true }
 	},
 

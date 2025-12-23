@@ -1,5 +1,5 @@
 const crypto = require('crypto')
-const uniIdCommon = require('uni-id-common')
+// const uniIdCommon = require('uni-id-common') // ❌ 移除依赖
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16)
@@ -70,14 +70,15 @@ function verifyJwtHs256(token, secret) {
 function getAdminTokenConfig(clientInfo) {
   // Normalize appId from context (APPID) or clientInfo (appId)
   const appId = clientInfo?.appId || clientInfo?.APPID
-  const normalizedClientInfo = { ...clientInfo, appId }
-
+  
+  // ✅ 直接读取 uni-config-center 配置，不使用 uni-id-common
   let config = {}
   try {
-      const uniId = uniIdCommon.createInstance({ clientInfo: normalizedClientInfo })
-      config = uniId.config
+    const createConfig = require('uni-config-center')
+    const uniIdConfig = createConfig({ pluginId: 'uni-id' })
+    config = uniIdConfig.config()
   } catch(e) {
-      console.warn('Failed to load uni-id config', e)
+    console.warn('Failed to load uni-id config from uni-config-center', e)
   }
 
   let appConfig = config

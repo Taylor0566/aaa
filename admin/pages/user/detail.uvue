@@ -60,13 +60,21 @@
 </template>
 
 <script setup>
-  import { ref, onLoad } from 'vue'
+  import { ref } from 'vue'
+  import { onLoad } from '@dcloudio/uni-app'
   
   const userId = ref('')
   const userInfo = ref({})
   const contentCount = ref(0)
   const commentCount = ref(0)
   
+  onShow(() => {
+    const token = uni.getStorageSync('adminToken')
+    if (!token) {
+      uni.reLaunch({ url: '/admin/pages/login/login' })
+    }
+  })
+
   onLoad((options) => {
     if (options.userId) {
       userId.value = options.userId

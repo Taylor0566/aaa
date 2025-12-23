@@ -4,26 +4,15 @@
     "description": "后台管理操作（鉴权、删除、审核）",
     "main": "index.obj.js",
     "dependencies": {
-        "uni-config-center": "file:../../../uni_modules/uni-config-center/uniCloud/cloudfunctions/common/uni-config-center",
-        "uni-id-common": "file:../../../uni_modules/uni-id-common/uniCloud/cloudfunctions/common/uni-id-common",
-        "admin-auth": "file:../common/admin-auth"
+        "admin-auth": "file:../common/admin-auth",
+        "uni-config-center": "file:../common/uni-config-center"
     },
-    "extensions": {
-        "uni-cloud-jql": {},
-        "uni-cloud-redis": {},
-        "uni-cloud-sms": {},
-        "uni-cloud-verify": {},
-        "uni-cloud-push": {},
-        "uni-cloud-ai": {},
-        "uni-cloud-ext-storage": {},
-        "uni-cloud-ext-database": {},
-        "uni-cloud-live": {}
-    },
+    "extensions": {},
     "cloudfunction-config": {
         "frequencyLimitEnable": false,
         "blackListEnable": false,
         "memorySize": 512,
-        "timeout": 5,
+        "timeout": 60,
         "triggers": [],
         "path": "/admin-operation",
         "runtime": "Nodejs16"

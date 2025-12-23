@@ -54,7 +54,7 @@ exports.getContentList = async (event, context) => {
   
   // 获取内容对应的用户名
   for (let content of contents.data) {
-    const user = await db.collection('uni-id-users').doc(content.user_id).field({ username: true }).get()
+    const user = await db.collection('users').doc(content.user_id).field({ username: true }).get()
     content.username = user.data.length > 0 ? user.data[0].username : '未知用户'
   }
   
@@ -110,14 +110,14 @@ exports.deleteContent = async (event, context) => {
     return { code: 400, message: '内容ID不能为空' }
   }
   
-  // 先删除关联评论
-  await db.collection('comments').where({ content_id }).remove()
+  // 软删除
+  const res = await db.collection('contents').doc(content_id).update({
+    deleted_at: new Date(),
+    status: 'deleted'
+  })
   
-  // 再删除内容
-  const res = await db.collection('contents').doc(content_id).remove()
-  
-  if (res.deleted === 1) {
-    return { code: 200, message: '内容已删除' }
+  if (res.updated === 1) {
+    return { code: 200, message: '内容已删除（保留7天可恢复）' }
   }
   
   return { code: 500, message: '删除失败' }
@@ -138,7 +138,7 @@ exports.getContentDetail = async (event, context) => {
   }
   
   // 获取发布者信息
-  const user = await db.collection('uni-id-users').doc(content.data[0].user_id).field({ username: true, email: true }).get()
+  const user = await db.collection('users').doc(content.data[0].user_id).field({ username: true, email: true }).get()
   
   // 获取评论列表
   const comments = await db.collection('comments')

@@ -41,8 +41,8 @@ exports.getUserList = async (event, context) => {
   
   // 执行查询
   const skip = (page - 1) * pageSize
-  const total = await db.collection('uni-id-users').where(where).count()
-  const users = await db.collection('uni-id-users')
+  const total = await db.collection('users').where(where).count()
+  const users = await db.collection('users')
     .where(where)
     .orderBy('create_time', 'desc')
     .skip(skip)
@@ -68,7 +68,7 @@ exports.toggleUserStatus = async (event, context) => {
     return { code: 400, message: '用户ID不能为空' }
   }
   
-  const res = await db.collection('uni-id-users')
+  const res = await db.collection('users')
     .doc(user_id)
     .update({
       status: status ? 1 : 0,
@@ -89,17 +89,14 @@ exports.deleteUser = async (event, context) => {
     return { code: 400, message: '用户ID不能为空' }
   }
   
-  // 先删除用户发布的内容
-  await db.collection('contents').where({ user_id }).remove()
+  // 软删除：设置 deleted_at 字段
+  const res = await db.collection('users').doc(user_id).update({
+    deleted_at: new Date(),
+    status: -1 // 标记为删除状态
+  })
   
-  // 再删除用户评论
-  await db.collection('comments').where({ user_id }).remove()
-  
-  // 最后删除用户
-  const res = await db.collection('uni-id-users').doc(user_id).remove()
-  
-  if (res.deleted === 1) {
-    return { code: 200, message: '用户已删除' }
+  if (res.updated === 1) {
+    return { code: 200, message: '用户已删除（保留7天可恢复）' }
   }
   
   return { code: 500, message: '删除失败' }
@@ -113,7 +110,7 @@ exports.getUserDetail = async (event, context) => {
   }
   
   // 获取用户基本信息
-  const user = await db.collection('uni-id-users').doc(user_id).get()
+  const user = await db.collection('users').doc(user_id).get()
   
   if (user.data.length === 0) {
     return { code: 404, message: '用户不存在' }

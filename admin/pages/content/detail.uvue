@@ -82,7 +82,8 @@
 </template>
 
 <script setup>
-  import { ref, onLoad } from 'vue'
+  import { ref } from 'vue'
+  import { onLoad } from '@dcloudio/uni-app'
   
   const contentId = ref('')
   const content = ref({})
@@ -91,6 +92,13 @@
   const auditPopup = ref(null)
   const auditAction = ref('approved')
   const rejectReason = ref('')
+
+  onShow(() => {
+    const token = uni.getStorageSync('adminToken')
+    if (!token) {
+      uni.reLaunch({ url: '/admin/pages/login/login' })
+    }
+  })
   
   onLoad((options) => {
     if (options.contentId) {

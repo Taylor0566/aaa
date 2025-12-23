@@ -64,51 +64,18 @@
       <text>第 {{ page }} / {{ totalPages }} 页</text>
       <button @click="changePage(page + 1)" :disabled="page >= totalPages">下一页</button>
     </view>
-    
-    <!-- 审核弹窗 -->
-    <uni-popup ref="auditPopup" type="dialog">
-      <uni-popup-dialog 
-        title="内容审核" 
-        :content="''"
-        @confirm="confirmAudit"
-        @cancel="cancelAudit"
-      >
-        <view class="audit-form">
-          <picker v-model="auditForm.status" :range="auditStatusOptions" range-key="label">
-            <view class="audit-status-picker">
-              {{ auditStatusOptions.find(item => item.value === auditForm.status).label }}
-            </view>
-          </picker>
-          <textarea 
-            v-model="auditForm.reason" 
-            placeholder="请输入拒绝原因（审核拒绝时必填）"
-            class="reason-input"
-            v-if="auditForm.status === 'rejected'"
-          ></textarea>
-        </view>
-      </uni-popup-dialog>
-    </uni-popup>
-    
-    <!-- 删除确认弹窗 -->
-    <uni-popup ref="deletePopup" type="dialog">
-      <uni-popup-dialog 
-        title="删除确认" 
-        content="确定要删除该内容吗？此操作不可恢复，将同步删除关联评论！"
-        @confirm="confirmDelete"
-        @cancel="cancelDelete"
-      ></uni-popup-dialog>
-    </uni-popup>
   </view>
 </template>
 
 <script setup>
-import { ref, reactive, onLoad, onShow } from 'vue'
+import { ref, reactive } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 
 // 权限检查
 onShow(() => {
   const token = uni.getStorageSync('adminToken')
   if (!token) {
-    uni.reLaunch({ url: '/pages/login/login' })
+    uni.reLaunch({ url: '/admin/pages/login/login' })
   }
 })
 
@@ -130,12 +97,6 @@ const statusOptions = ref([
   { value: 'published', label: '已发布' }
 ])
 
-// 审核状态选项
-const auditStatusOptions = ref([
-  { value: 'approved', label: '审核通过' },
-  { value: 'rejected', label: '审核拒绝' }
-])
-
 // 筛选条件
 const filter = reactive({
   keyword: '',
@@ -145,22 +106,12 @@ const filter = reactive({
   endDate: ''
 })
 
-// 审核表单
-const auditForm = reactive({
-  contentId: '',
-  status: 'approved',
-  reason: ''
-})
-
 // 列表数据
 const contentList = ref([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const totalPages = ref(0)
-const deleteContentId = ref('')
-const auditPopup = ref(null)
-const deletePopup = ref(null)
 
 // 页面加载获取内容列表
 onLoad(() => {
@@ -182,7 +133,7 @@ const getContentList = async () => {
         startDate: filter.startDate,
         endDate: filter.endDate,
         page: page.value,
-        pageSize: page.value,
+        pageSize: pageSize.value,
         token: uni.getStorageSync('adminToken')
       }
     })
@@ -200,84 +151,73 @@ const getContentList = async () => {
 
 // 查看内容详情
 const viewContentDetail = (contentId) => {
-  uni.navigateTo({ url: `/pages/admin/content/detail?contentId=${contentId}` })
+  uni.navigateTo({ url: `/admin/pages/content/detail?contentId=${contentId}` })
 }
 
-// 显示审核弹窗
-const showAuditPopup = (contentId, currentStatus) => {
-  auditForm.contentId = contentId
-  auditForm.status = currentStatus === 'rejected' ? 'approved' : 'approved'
-  auditForm.reason = ''
-  auditPopup.value.open()
-}
-
-// 确认审核
-const confirmAudit = async () => {
-  if (auditForm.status === 'rejected' && !auditForm.reason.trim()) {
-    uni.showToast({ title: '请输入拒绝原因', icon: 'none' })
-    return
-  }
-  
+const updateContentStatus = async (contentId, status, reason = '') => {
   try {
     const res = await uniCloud.callFunction({
       name: 'admin-api',
       data: {
         action: 'updateContentStatus',
-        content_id: auditForm.contentId,
-        status: auditForm.status,
-        reason: auditForm.reason.trim(),
+        content_id: contentId,
+        status,
+        reason,
         token: uni.getStorageSync('adminToken')
       }
     })
     if (res.result.code === 200) {
-      uni.showToast({ title: '审核操作成功', icon: 'success' })
-      auditPopup.value.close()
-      getContentList() // 刷新列表
+      uni.showToast({ title: '操作成功', icon: 'success' })
+      getContentList()
     } else {
       uni.showToast({ title: res.result.message, icon: 'none' })
     }
   } catch (e) {
-    uni.showToast({ title: '审核操作失败', icon: 'none' })
+    uni.showToast({ title: '操作失败', icon: 'none' })
   }
 }
 
-// 取消审核
-const cancelAudit = () => {
-  auditPopup.value.close()
+const showAuditPopup = (contentId) => {
+  uni.showActionSheet({
+    itemList: ['通过', '拒绝（去详情填写原因）'],
+    success: async ({ tapIndex }) => {
+      if (tapIndex === 0) {
+        await updateContentStatus(contentId, 'approved', '')
+        return
+      }
+      viewContentDetail(contentId)
+    }
+  })
 }
 
-// 显示删除确认弹窗
 const showDeleteConfirm = (contentId) => {
-  deleteContentId.value = contentId
-  deletePopup.value.open()
-}
-
-// 确认删除内容
-const confirmDelete = async () => {
-  try {
-    const res = await uniCloud.callFunction({
-      name: 'admin-api',
-      data: {
-        action: 'deleteContent',
-        content_id: deleteContentId.value,
-        token: uni.getStorageSync('adminToken')
+  uni.showModal({
+    title: '删除确认',
+    content: '确定要删除该内容吗？此操作不可恢复，将同步删除关联评论！',
+    confirmText: '删除',
+    confirmColor: '#ff3b30',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        const callRes = await uniCloud.callFunction({
+          name: 'admin-api',
+          data: {
+            action: 'deleteContent',
+            content_id: contentId,
+            token: uni.getStorageSync('adminToken')
+          }
+        })
+        if (callRes.result.code === 200) {
+          uni.showToast({ title: '内容删除成功', icon: 'success' })
+          getContentList()
+          return
+        }
+        uni.showToast({ title: callRes.result.message, icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: '删除内容失败', icon: 'none' })
       }
-    })
-    if (res.result.code === 200) {
-      uni.showToast({ title: '内容删除成功', icon: 'success' })
-      deletePopup.value.close()
-      getContentList() // 刷新列表
-    } else {
-      uni.showToast({ title: res.result.message, icon: 'none' })
     }
-  } catch (e) {
-    uni.showToast({ title: '删除内容失败', icon: 'none' })
-  }
-}
-
-// 取消删除
-const cancelDelete = () => {
-  deletePopup.value.close()
+  })
 }
 
 // 切换页码

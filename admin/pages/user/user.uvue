@@ -61,27 +61,18 @@
       <text>第 {{ page }} / {{ totalPages }} 页</text>
       <button @click="changePage(page + 1)" :disabled="page >= totalPages">下一页</button>
     </view>
-    
-    <!-- 删除确认弹窗 -->
-    <uni-popup ref="deletePopup" type="dialog">
-      <uni-popup-dialog 
-        title="删除确认" 
-        content="确定要删除该用户吗？此操作不可恢复，将同步删除用户发布的内容和评论！"
-        @confirm="confirmDelete"
-        @cancel="cancelDelete"
-      ></uni-popup-dialog>
-    </uni-popup>
   </view>
 </template>
 
 <script setup>
-import { ref, reactive, onLoad, onShow } from 'vue'
+import { ref, reactive } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 
 // 权限检查
 onShow(() => {
   const token = uni.getStorageSync('adminToken')
   if (!token) {
-    uni.reLaunch({ url: '/pages/login/login' })
+    uni.reLaunch({ url: '/admin/pages/login/login' })
   }
 })
 
@@ -106,8 +97,6 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const totalPages = ref(0)
-const deleteUserId = ref('')
-const deletePopup = ref(null)
 
 // 页面加载获取用户列表
 onLoad(() => {
@@ -170,41 +159,38 @@ const toggleUserStatus = async (userId, currentStatus) => {
 
 // 查看用户详情
 const viewUserDetail = (userId) => {
-  uni.navigateTo({ url: `/pages/admin/user/detail?userId=${userId}` })
+  uni.navigateTo({ url: `/admin/pages/user/detail?userId=${userId}` })
 }
 
 // 显示删除确认弹窗
 const showDeleteConfirm = (userId) => {
-  deleteUserId.value = userId
-  deletePopup.value.open()
-}
-
-// 确认删除用户
-const confirmDelete = async () => {
-  try {
-    const res = await uniCloud.callFunction({
-      name: 'admin-api',
-      data: {
-        action: 'deleteUser',
-        user_id: deleteUserId.value,
-        token: uni.getStorageSync('adminToken')
+  uni.showModal({
+    title: '删除确认',
+    content: '确定要删除该用户吗？此操作不可恢复，将同步删除用户发布的内容和评论！',
+    confirmText: '删除',
+    confirmColor: '#ff3b30',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        const callRes = await uniCloud.callFunction({
+          name: 'admin-api',
+          data: {
+            action: 'deleteUser',
+            user_id: userId,
+            token: uni.getStorageSync('adminToken')
+          }
+        })
+        if (callRes.result.code === 200) {
+          uni.showToast({ title: '用户删除成功', icon: 'success' })
+          getUserList()
+          return
+        }
+        uni.showToast({ title: callRes.result.message, icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: '删除用户失败', icon: 'none' })
       }
-    })
-    if (res.result.code === 200) {
-      uni.showToast({ title: '用户删除成功', icon: 'success' })
-      deletePopup.value.close()
-      getUserList() // 刷新列表
-    } else {
-      uni.showToast({ title: res.result.message, icon: 'none' })
     }
-  } catch (e) {
-    uni.showToast({ title: '删除用户失败', icon: 'none' })
-  }
-}
-
-// 取消删除
-const cancelDelete = () => {
-  deletePopup.value.close()
+  })
 }
 
 // 切换页码

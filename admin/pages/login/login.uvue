@@ -52,7 +52,7 @@
       uni.showToast({ title: '登录成功', icon: 'success' })
       
       setTimeout(() => {
-        uni.reLaunch({ url: '/pages/dashboard/dashboard' })
+        uni.reLaunch({ url: '/admin/pages/dashboard/dashboard' })
       }, 1000)
       
     } catch (e) {

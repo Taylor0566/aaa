@@ -222,26 +222,26 @@ async function submitPost() {
       tags: formData.value.tags
     }
 
-    // 👇【需要后端 API】：发布内容到你的服务器
-    /*
-    const response = await uni.request({
-      url: 'https://your-api.com/posts/create',
-      method: 'POST',
-      data: postData
+    // ✅ 调用云函数发布内容
+    const result = await uniCloud.callFunction({
+      name: 'content-api',
+      data: {
+        action: 'create-content',
+        title: formData.value.title.trim(),
+        text_content: formData.value.description.trim(),
+        content_type: formData.value.type,
+        media_files: mediaUrl ? [{ url: mediaUrl, file_type: formData.value.type === 'image' ? 'image/jpeg' : 'video/mp4' }] : [],
+        tags: formData.value.tags,
+        visibility: 'public'
+      }
     })
 
-    if (response.statusCode === 200) {
+    if (result.result.code === 200) {
       uni.showToast({ title: '发布成功！', icon: 'success' })
       setTimeout(() => uni.navigateBack(), 1500)
     } else {
-      throw new Error('发布失败')
+      throw new Error(result.result.message || '发布失败')
     }
-    */
-
-    // ✅ 模拟成功
-    console.log('✅ 模拟发布成功:', postData)
-    uni.showToast({ title: '发布成功！', icon: 'success' })
-    setTimeout(() => uni.navigateBack(), 1500)
 
   } catch (err) {
     console.error('发布失败:', err)

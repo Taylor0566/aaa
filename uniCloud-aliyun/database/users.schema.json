@@ -132,14 +132,7 @@
     "d_ids": {
       "bsonType": "array",
       "description": "部门ID",
-      "title": "部门",
-      "foreignKey": "opendb-department._id",
-      "enumType": "tree",
-      "enum": {
-        "collection": "opendb-department",
-        "orderby": "name asc",
-        "field": "_id as value, name as text"
-      }
+      "title": "部门"
     },
     "e_ids": {
       "bsonType": "array",
@@ -195,8 +188,7 @@
     },
     "dcloud_appid": {
       "bsonType": "array",
-      "description": "允许登录的客户端的appid列表",
-      "foreignKey": "opendb-app-list.appid"
+      "description": "允许登录的客户端的appid列表"
     },
     "comment": {
       "bsonType": "string",
