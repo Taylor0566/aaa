@@ -39,13 +39,5 @@
       }
     ]
   },
-  "network": {
-    "requestLegalDomain": [
-      "https://api.next.bspapp.com"
-    ],
-    "uploadFileLegalDomain": [
-      "https://api.next.bspapp.com"
-    ]
-  },
   "usingComponents": {}
 }

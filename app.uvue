@@ -1,13 +1,32 @@
-<template>
-	<view>
-		
-	</view>
-</template>
-
-<script setup>
-	
+<script>
+export default {
+  onLaunch() {
+    // App 启动时执行（相当于原生 App.onLaunch）
+    console.log('App launched');
+  },
+  onShow() {
+    // App 切入前台
+  },
+  onHide() {
+    // App 切入后台
+  }
+}
 </script>
 
 <style>
+/* 全局样式：来自 app.wxss */
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 200rpx 0;
+  box-sizing: border-box;
+}
 
+/* uni-app 默认会引入一些基础样式，如需重置可加 */
+page {
+  background-color: #ffffff;
+}
 </style>
