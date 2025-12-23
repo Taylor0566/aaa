@@ -1,13 +1,324 @@
 <template>
-	<view>
-		
-	</view>
+  <view class="container">
+    <view class="card">
+      <!-- 返回按钮 -->
+      <view class="back-btn" @click="goBackToLogin">← 返回登录</view>
+
+      <view class="title">注册新账号</view>
+
+      <form @submit="onRegisterSubmit">
+        <view class="input-group">
+          <text class="label">用户名</text>
+          <input
+            type="text"
+            placeholder="请输入用户名"
+            v-model="username"
+            :disabled="isLoading"
+          />
+        </view>
+
+        <view class="input-group">
+          <text class="label">设置密码</text>
+          <input
+            type="password"
+            placeholder="请输入密码（至少6位）"
+            v-model="password"
+            :disabled="isLoading"
+          />
+        </view>
+
+        <view class="input-group">
+          <text class="label">确认密码</text>
+          <input
+            type="password"
+            placeholder="请再次输入密码"
+            v-model="confirmPassword"
+            :disabled="isLoading"
+          />
+        </view>
+
+        <button 
+          form-type="submit" 
+          class="btn-register" 
+          :disabled="isLoading"
+          :loading="isLoading"
+        >
+          {{ isLoading ? '注册中...' : '注册' }}
+        </button>
+      </form>
+    </view>
+  </view>
 </template>
 
-<script setup>
-	
+<script>
+export default {
+  data() {
+    return {
+      username: '',
+      password: '',
+      confirmPassword: '',
+      isLoading: false
+    };
+  },
+  methods: {
+    async onRegisterSubmit() {
+      
+      const { username, password, confirmPassword } = this;
+
+      // 表单验证
+      if (!username.trim()) {
+        uni.showToast({
+          title: '请输入用户名',
+          icon: 'none'
+        });
+        return;
+      }
+
+      if (!password) {
+        uni.showToast({
+          title: '请输入密码',
+          icon: 'none'
+        });
+        return;
+      }
+
+      if (password.length < 6) {
+        uni.showToast({
+          title: '密码长度至少6位',
+          icon: 'none'
+        });
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        uni.showToast({
+          title: '两次密码不一致',
+          icon: 'none'
+        });
+        return;
+      }
+
+      // 开始注册
+      this.isLoading = true;
+      
+      try {
+        const res = await uniCloud.callFunction({
+          name: 'user-api',
+          data: {
+            action: 'register',
+            username: username.trim(),
+            password
+          }
+        });
+
+        console.log('注册返回结果:', res);
+
+        const { code, message, data } = res.result || {};
+
+        if (code === 0 && data && data.token) {
+          // 注册成功，自动登录
+          const { token, ...userInfo } = data;
+          
+          uni.setStorageSync('uni_id_token', token);
+          uni.setStorageSync('user_info', userInfo);
+          
+          uni.showToast({
+            title: '注册成功',
+            icon: 'success',
+            duration: 1500
+          });
+
+          // 延迟跳转到首页
+          setTimeout(() => {
+            uni.switchTab({
+              url: '/pages/content/list/list'
+            });
+          }, 1500);
+        } else {
+          // 注册失败
+          let errorMessage = '注册失败';
+          
+          if (message) {
+            errorMessage = message;
+          } else if (code === 1004) {
+            errorMessage = '用户名已存在';
+          } else if (code === 1002) {
+            errorMessage = '密码错误';
+          } else if (code === 1003) {
+            errorMessage = '账号已被禁用';
+          }
+          
+          uni.showToast({
+            title: errorMessage,
+            icon: 'none',
+            duration: 3000
+          });
+        }
+      } catch (err) {
+        console.error('注册请求失败:', err);
+        
+        let errorMessage = '注册失败，请稍后重试';
+        if (err && err.errMsg) {
+          errorMessage = err.errMsg;
+        } else if (err && err.message) {
+          errorMessage = err.message;
+        }
+        
+        uni.showToast({
+          title: errorMessage,
+          icon: 'none',
+          duration: 3000
+        });
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    goBackToLogin() {
+      uni.redirectTo({
+        url: '/pages/user/login/login'
+      });
+    }
+  }
+};
 </script>
 
 <style>
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  padding: 40rpx 0;
+}
 
+.card {
+  width: 90%;
+  max-width: 947rpx;
+  padding: 50rpx 40rpx;
+  border-radius: 50rpx;
+  background-color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin: 0 auto;
+}
+
+.back-btn {
+  font-size: 32rpx;
+  color: #007aff;
+  margin-bottom: 30rpx;
+  cursor: pointer;
+  display: inline-block;
+  padding: 10rpx 0;
+}
+
+.back-btn:active {
+  opacity: 0.7;
+}
+
+.title {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 50rpx;
+  text-align: center;
+}
+
+.input-group {
+  margin-bottom: 30rpx;
+}
+
+.label {
+  display: block;
+  margin-bottom: 10rpx;
+  font-size: 30rpx;
+  color: #555;
+  font-weight: 500;
+}
+
+input {
+  width: 100%;
+  padding: 10rpx;
+  border: 1rpx solid #ddd;
+  border-radius: 10rpx;
+  font-size: 25rpx;
+  box-sizing: border-box;
+  background-color: #f9f9f9;
+}
+
+input:focus {
+  border-color: #007aff;
+  background-color: white;
+}
+
+input:disabled {
+  background-color: #f0f0f0;
+  color: #999;
+}
+
+.btn-register {
+  width: 100%;
+  margin-top: 50rpx;
+  background-color: #007aff;
+  color: white;
+  border-radius: 30rpx;
+  font-size: 32rpx;
+  padding: 20rpx;
+  border: none;
+  font-weight: 500;
+}
+
+.btn-register:disabled {
+  background-color: #cccccc;
+  color: #666666;
+}
+
+.btn-register:not(:disabled):active {
+  opacity: 0.8;
+}
+
+/* 响应式调整 */
+@media (max-width: 750rpx) {
+  .card {
+    width: 95%;
+    padding: 40rpx 30rpx;
+  }
+  
+  .title {
+    font-size: 36rpx;
+    margin-bottom: 40rpx;
+  }
+  
+  .label {
+    font-size: 28rpx;
+  }
+  
+  input {
+    font-size: 28rpx;
+    padding: 16rpx;
+  }
+  
+  .btn-register {
+    font-size: 30rpx;
+    padding: 18rpx;
+    margin-top: 40rpx;
+  }
+}
+
+/* 确保在滚动时注册按钮始终可见 */
+.container {
+  position: relative;
+  min-height: 100vh;
+}
+
+.card {
+  position: relative;
+  overflow: visible;
+}
+
+.btn-register {
+  position: relative;
+  z-index: 10;
+}
 </style>

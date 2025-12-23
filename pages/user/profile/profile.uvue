@@ -1,13 +1,494 @@
 <template>
-	<view>
-		
-	</view>
+  <view class="container">
+    <!-- 加载状态 -->
+    <view v-if="loading" class="loading-section">
+      <text>加载中...</text>
+    </view>
+
+    <!-- 用户信息展示区 -->
+    <view v-else class="info-section">
+      <image :src="userInfo.avatar || defaultAvatar" class="avatar" mode="aspectFill"></image>
+
+      <view class="field">
+        <text class="label">用户ID：</text>
+        <text class="value">{{ userInfo._id }}</text>
+      </view>
+
+      <view class="field">
+        <text class="label">用户名：</text>
+        <text class="value">{{ userInfo.username }}</text>
+      </view>
+
+      <view class="field">
+        <text class="label">昵称：</text>
+        <input
+          class="nickname-input"
+          type="text"
+          v-model="userInfo.nickname"
+          @blur="updateNickname"
+          placeholder="点击修改昵称"
+          :disabled="isUpdating"
+        />
+        <text v-if="isUpdating" class="updating-text">更新中...</text>
+      </view>
+
+      <view class="field">
+        <text class="label">性别：</text>
+        <picker
+          class="gender-picker"
+          :value="getCurrentGenderIndex"
+          :range="genderOptions"
+          range-key="label"
+          @change="onGenderChange"
+          :disabled="isUpdating"
+        >
+          <text class="picker-text">{{ getGenderLabel(userInfo.gender) }}</text>
+        </picker>
+      </view>
+
+      <view class="field" v-if="userInfo.email">
+        <text class="label">邮箱：</text>
+        <text class="value">{{ userInfo.email }}</text>
+      </view>
+
+      <view class="field" v-if="userInfo.mobile">
+        <text class="label">手机号：</text>
+        <text class="value">{{ userInfo.mobile }}</text>
+      </view>
+
+      <view class="field">
+        <text class="label">注册时间：</text>
+        <text class="value">{{ formatDate(userInfo.register_date) }}</text>
+      </view>
+
+      <!-- 用户统计数据 -->
+      <view class="stats-section">
+        <view class="stat-item">
+          <text class="stat-number">{{ userStats.content_count || 0 }}</text>
+          <text class="stat-label">发布</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-number">{{ userStats.comment_count || 0 }}</text>
+          <text class="stat-label">评论</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-number">{{ userStats.like_count || 0 }}</text>
+          <text class="stat-label">点赞</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 操作按钮区 -->
+    <view class="action-section">
+      <button class="btn-action" @click="refreshUserInfo" :disabled="loading">
+        刷新信息
+      </button>
+      
+      <navigator url="/pages/user/change-password/change-password" class="btn-action">
+        修改密码
+      </navigator>
+      
+      <button class="btn-logout" @click="logout">
+        退出登录
+      </button>
+    </view>
+  </view>
 </template>
 
-<script setup>
-	
+<script>
+export default {
+  data() {
+    return {
+      userInfo: {
+        _id: '',
+        username: '',
+        nickname: '',
+        avatar: '',
+        gender: 0,
+        email: '',
+        mobile: '',
+        register_date: ''
+      },
+      userStats: {
+        content_count: 0,
+        comment_count: 0,
+        like_count: 0
+      },
+      loading: true,
+      isUpdating: false,
+      defaultAvatar: 'https://ruangong-dazuoye-file.oss-cn-shenzhen.aliyuncs.com/%E9%AB%98%E9%9B%85%E4%BC%81%E9%B9%85.jpg',
+      genderOptions: [
+        { value: 0, label: '未知' },
+        { value: 1, label: '男' },
+        { value: 2, label: '女' }
+      ]
+    };
+  },
+
+  onLoad() {
+	const token = uni.getStorageSync('uni_id_token');
+	console.log('【当前 token】:', JSON.stringify(token)); // 用 JSON.stringify 看清结构
+    this.fetchUserInfo();
+  },
+
+  onPullDownRefresh() {
+    this.fetchUserInfo();
+  },
+
+  computed: {
+    // 用于 picker 的当前索引（解决 picker value 必须是 index 的问题）
+    getCurrentGenderIndex() {
+      const index = this.genderOptions.findIndex(opt => opt.value === this.userInfo.gender);
+      return index === -1 ? 0 : index;
+    }
+  },
+
+  methods: {
+    async fetchUserInfo() {
+      this.loading = true;
+      try {
+        const res = await uniCloud.callFunction({
+          name: 'user-api',
+          data: {
+            action: 'get_profile'
+          }
+        });
+
+        const result = res.result || {};
+        if (result.code === 200 && result.data) {
+          const data = result.data;
+
+          // 分离 userInfo 和 stats（假设后端返回 { profile: {...}, stats: {...} } 或直接合并）
+          // 这里兼容两种结构：1. data 是完整用户对象；2. data = { profile, stats }
+          if (data.profile) {
+            this.userInfo = { ...data.profile };
+            this.userStats = { ...data.stats } || {};
+          } else {
+            // 假设 data 就是用户对象，stats 需单独处理（若无则保持默认0）
+            this.userInfo = { ...data };
+            // 如果后端未返回 stats，则保持原有默认值（0）
+          }
+
+          if (!this.userInfo.avatar) {
+            this.userInfo.avatar = this.defaultAvatar;
+          }
+        } else {
+          throw new Error(result.message || '获取用户信息失败');
+        }
+      } catch (err) {
+        console.error('获取用户信息异常:', err);
+        uni.showToast({
+          title: '获取信息失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      } finally {
+        this.loading = false;
+        uni.stopPullDownRefresh();
+      }
+    },
+
+    async updateNickname() {
+      const newNickname = (this.userInfo.nickname || '').trim();
+      if (!newNickname) {
+        uni.showToast({ title: '昵称不能为空', icon: 'none' });
+        return;
+      }
+
+      this.isUpdating = true;
+      try {
+        const res = await uniCloud.callFunction({
+          name: 'user-api',
+          data: {
+            action: 'profile',
+            nickname: newNickname
+          }
+        });
+
+        const result = res.result || {};
+        if (result.code === 0) {
+          uni.showToast({ title: '昵称更新成功', icon: 'success' });
+        } else {
+          uni.showToast({ title: result.message || '更新失败', icon: 'none' });
+        }
+      } catch (err) {
+        console.error('更新昵称失败:', err);
+        uni.showToast({ title: '网络错误，请重试', icon: 'none' });
+      } finally {
+        this.isUpdating = false;
+      }
+    },
+
+    async onGenderChange(e) {
+      const selectedIndex = e.detail.value;
+      const newGender = this.genderOptions[selectedIndex].value;
+
+      if (newGender === this.userInfo.gender) return;
+
+      this.isUpdating = true;
+      try {
+        const res = await uniCloud.callFunction({
+          name: 'user-api',
+          data: {
+            action: 'update_profile',
+            gender: newGender
+          }
+        });
+
+        const result = res.result || {};
+        if (result.code === 0) {
+          this.userInfo.gender = newGender;
+          uni.showToast({ title: '性别更新成功', icon: 'success' });
+        } else {
+          uni.showToast({ title: result.message || '更新失败', icon: 'none' });
+        }
+      } catch (err) {
+        console.error('更新性别失败:', err);
+        uni.showToast({ title: '网络错误，请重试', icon: 'none' });
+      } finally {
+        this.isUpdating = false;
+      }
+    },
+
+    getGenderLabel(gender) {
+      const option = this.genderOptions.find(opt => opt.value === gender);
+      return option ? option.label : '未知';
+    },
+
+    formatDate(timestamp) {
+      if (!timestamp) return '未知';
+      const date = new Date(timestamp);
+      return date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+    },
+
+    refreshUserInfo() {
+      this.fetchUserInfo();
+    },
+
+    logout() {
+      uni.showModal({
+        title: '确认退出',
+        content: '确定要退出登录吗？',
+        success: async (res) => {
+          if (res.confirm) {
+            try {
+              await uniCloud.callFunction({
+                name: 'user-api',
+                data: { action: 'logout' }
+              });
+            } catch (err) {
+              console.warn('登出接口调用失败（可忽略）:', err);
+            } finally {
+              uni.removeStorageSync('uni_id_token');
+              uni.removeStorageSync('user_info');
+              uni.redirectTo({ url: '/pages/user/login/login' });
+            }
+          }
+        }
+      });
+    }
+  }
+};
 </script>
 
-<style>
+<style scoped>
+/* 你的原样式完全保留，此处省略以节省篇幅 */
+.container {
+  padding: 40rpx 30rpx;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
 
+.loading-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300rpx;
+  font-size: 32rpx;
+  color: #666;
+}
+
+.info-section {
+  background: white;
+  border-radius: 30rpx;
+  padding: 50rpx 40rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.avatar {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  margin-bottom: 40rpx;
+  object-fit: cover;
+  border: 4rpx solid #f0f0f0;
+}
+
+.field {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin: 25rpx 0;
+  padding: 0 20rpx;
+  min-height: 60rpx;
+}
+
+.label {
+  font-size: 30rpx;
+  color: #555;
+  min-width: 140rpx;
+  text-align: left;
+  font-weight: 500;
+}
+
+.value {
+  font-size: 30rpx;
+  color: #333;
+  flex: 1;
+  text-align: left;
+  word-break: break-all;
+}
+
+.nickname-input {
+  font-size: 30rpx;
+  color: #333;
+  flex: 1;
+  text-align: left;
+  padding: 10rpx 0;
+  border-bottom: 1rpx solid #eee;
+  background: transparent;
+  outline: none;
+}
+
+.nickname-input:disabled {
+  color: #999;
+  background-color: #f9f9f9;
+}
+
+.updating-text {
+  font-size: 26rpx;
+  color: #999;
+  margin-left: 20rpx;
+}
+
+.gender-picker {
+  flex: 1;
+  text-align: left;
+}
+
+.picker-text {
+  font-size: 30rpx;
+  color: #333;
+  padding: 10rpx 0;
+  border-bottom: 1rpx solid #eee;
+}
+
+.stats-section {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 50rpx;
+  padding-top: 40rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-number {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #007aff;
+  margin-bottom: 10rpx;
+}
+
+.stat-label {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.action-section {
+  background: white;
+  border-radius: 30rpx;
+  padding: 40rpx 30rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.btn-action {
+  display: block;
+  width: 100%;
+  padding: 25rpx;
+  background-color: #007aff;
+  color: white;
+  border-radius: 25rpx;
+  font-size: 32rpx;
+  text-align: center;
+  margin-bottom: 30rpx;
+  border: none;
+  outline: none;
+}
+
+.btn-action:disabled {
+  background-color: #cccccc;
+  color: #666666;
+}
+
+.btn-action:not(:disabled):active {
+  opacity: 0.8;
+}
+
+.btn-logout {
+  display: block;
+  width: 100%;
+  padding: 25rpx;
+  background-color: #ff3b30;
+  color: white;
+  border-radius: 25rpx;
+  font-size: 32rpx;
+  text-align: center;
+  border: none;
+  outline: none;
+}
+
+.btn-logout:active {
+  opacity: 0.8;
+}
+
+@media (max-width: 750rpx) {
+  .container {
+    padding: 30rpx 20rpx;
+  }
+  .info-section {
+    padding: 40rpx 30rpx;
+  }
+  .avatar {
+    width: 140rpx;
+    height: 140rpx;
+  }
+  .label {
+    font-size: 28rpx;
+    min-width: 120rpx;
+  }
+  .value, .nickname-input, .picker-text {
+    font-size: 28rpx;
+  }
+  .stat-number {
+    font-size: 36rpx;
+  }
+  .stat-label {
+    font-size: 24rpx;
+  }
+  .btn-action, .btn-logout {
+    font-size: 30rpx;
+    padding: 22rpx;
+  }
+}
 </style>

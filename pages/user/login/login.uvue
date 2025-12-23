@@ -1,13 +1,204 @@
 <template>
-	<view>
-		
-	</view>
+  <view class="container">
+    <view class="card">
+      <view class="title">朋友圈小程序</view>
+
+      <form @submit="onLoginSubmit">
+        <view class="input-group">
+          <text class="label">账号</text>
+          <input
+            type="text"
+            placeholder="请输入"
+            v-model="username"
+          />
+        </view>
+
+        <view class="input-group">
+          <text class="label">密码</text>
+          <input
+            type="password"
+            placeholder="请输入"
+            v-model="password"
+          />
+        </view>
+
+        <button form-type="submit" class="btn-login">登录</button>
+      </form>
+
+      <navigator url="/pages/user/register/register" class="btn-register">
+        没有账号？点击注册
+      </navigator>
+    </view>
+  </view>
 </template>
 
-<script setup>
-	
+<script>
+export default {
+  data() {
+    return {
+      username: '',
+      password: ''
+    };
+  },
+  methods: {
+    async onLoginSubmit() {
+      const { username, password } = this;
+    
+      if (!username || !password) {
+        uni.showToast({ title: '请填写账号和密码', icon: 'none' });
+        return;
+      }
+    
+      try {
+        const res = await uniCloud.callFunction({
+          name: 'user-api',
+          data: {
+            action: 'login',
+            username,
+            password
+          }
+        });
+    
+        console.log('云函数返回结果:', res); // 添加日志
+        
+        const { code, message, data } = res.result || {};
+        
+        console.log('解析结果:', { code, message, data }); // 添加日志
+        
+        if (code === 0 && data && data.token) {
+          // 从 data 中提取 token 和用户信息
+          const { token, ...userInfo } = data;
+          
+          console.log('登录成功，用户信息:', userInfo); // 添加日志
+          
+          // 存储 token 和用户信息
+          uni.setStorageSync('uni_id_token', token);
+          uni.setStorageSync('user_info', userInfo);
+          
+          // 显示成功提示
+          uni.showToast({ 
+            title: '登录成功', 
+            icon: 'success',
+            duration: 1500
+          });
+          
+          // 延迟跳转，让用户看到成功提示
+          setTimeout(() => {
+            uni.switchTab({
+              url: '/pages/comtent/list/list' 
+            });
+          }, 1500);
+          
+        } else {
+          // 登录失败，显示后端返回的错误信息
+          console.error('登录失败:', { code, message, data });
+          
+          let errorMessage = '登录失败';
+          if (message) {
+            errorMessage = message;
+          } else if (code === 1001) {
+            errorMessage = '用户不存在';
+          } else if (code === 1002) {
+            errorMessage = '密码错误';
+          } else if (code === 1003) {
+            errorMessage = '账号已被禁用';
+          }
+          
+          uni.showToast({ 
+            title: errorMessage, 
+            icon: 'none',
+            duration: 3000
+          });
+        }
+      } catch (err) {
+        console.error('登录请求失败:', err);
+        
+        let errorMessage = '网络错误，请检查网络连接';
+        
+        // 解析错误信息
+        if (err && typeof err === 'object') {
+          if (err.errCode || err.errMsg) {
+            errorMessage = err.errMsg || `错误代码: ${err.errCode}`;
+          } else if (err.message) {
+            errorMessage = err.message;
+          }
+        }
+        
+        uni.showToast({
+          title: errorMessage,
+          icon: 'none',
+          duration: 3000
+        });
+      }
+    }
+  }
+};
 </script>
 
 <style>
+/* 样式保持不变 */
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #f5f5f5;
+}
 
+.card {
+  width: 90%;
+  max-width: 947rpx;
+  padding: 80rpx;
+  border-radius: 50rpx;
+  background-color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.title {
+  font-size: 48rpx;
+  margin-bottom: 80rpx;
+  color: #333;
+}
+
+.input-group {
+  margin-bottom: 40rpx;
+  text-align: left;
+}
+
+.label {
+  display: block;
+  margin-bottom: 10rpx;
+  font-size: 32rpx;
+  color: #555;
+}
+
+input {
+  width: 100%;
+  padding: 10rpx;
+  border: 1rpx solid #ccc;
+  border-radius: 10rpx;
+  font-size: 32rpx;
+  box-sizing: border-box;
+}
+
+.btn-login {
+  width: 100%;
+  margin-top: 40rpx;
+  background-color: #007aff;
+  color: white;
+  border-radius: 30rpx;
+  font-size: 32rpx;
+  padding: 20rpx;
+  border: none;
+}
+
+.btn-register {
+  display: block;
+  margin-top: 20rpx;
+  color: #007aff;
+  font-size: 28rpx;
+  text-decoration: none;
+}
 </style>

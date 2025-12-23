@@ -1,1 +1,0 @@
-<view id="{{c}}" change:eS="{{uV.sS}}" eS="{{$eS[c]}}" change:eA="{{uV.sA}}" eA="{{$eA[c]}}" class="{{[virtualHostClass]}}" style="{{virtualHostStyle}}" hidden="{{virtualHostHidden || false}}"><image class="logo" src="{{a}}"></image><text class="title">{{b}}</text></view><wxs src="/common/uniView.wxs" module="uV"/>

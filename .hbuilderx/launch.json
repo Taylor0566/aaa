@@ -4,6 +4,16 @@
         {
             "playground" : "standard",
             "type" : "uni-app:app-android"
+        },
+        {
+            "default" : {
+                "launchtype" : "local"
+            },
+            "mp-weixin" : {
+                "launchtype" : "remote"
+            },
+            "provider" : "aliyun",
+            "type" : "uniCloud"
         }
     ]
 }

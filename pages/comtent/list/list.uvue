@@ -1,13 +1,597 @@
 <template>
-	<view>
-		
-	</view>
+  <view class="container">
+    <!-- 顶部导航按钮 -->
+    <view class="top-nav">
+      <view class="nav-btn" @click="goUpload">上传</view>
+      <view class="nav-btn" @click="goProfile">个人中心</view>
+    </view>
+
+    <!-- 搜索栏区域 -->
+    <view class="search-bar">
+      <input
+        type="text"
+        v-model="keyword"
+        placeholder="搜索标题或描述..."
+        @confirm="onSearch"
+      />
+      <button @click="showFilterModal">筛选</button>
+    </view>
+
+    <!-- 筛选弹窗 -->
+    <view v-if="showFilter" class="filter-modal">
+      <!-- 手动输入标签 -->
+      <view class="filter-item">
+        <text>按标签筛选：</text>
+        <input
+          type="text"
+          v-model="manualTagInput"
+          placeholder="如：美食,旅行（回车应用）"
+          @confirm="applyFilters"
+          style="flex: 1; margin-left: 20rpx; padding: 10rpx; border: 1rpx solid #ddd; border-radius: 10rpx;"
+        />
+      </view>
+
+      <view class="filter-item">
+        <text>按类型筛选：</text>
+        <picker @change="onTypeChange" :value="selectedTypeIndex" :range="types">
+          <text>{{ types[selectedTypeIndex] }}</text>
+        </picker>
+      </view>
+      <view class="filter-item">
+        <text>按日期范围：</text>
+        <picker @change="onDateRangeChange" :value="dateRangeIndex" :range="dateRanges">
+          <text>{{ dateRanges[dateRangeIndex] }}</text>
+        </picker>
+      </view>
+      <button @click="applyFilters">应用筛选</button>
+      <button @click="closeFilter">取消</button>
+    </view>
+
+    <!-- 仅看自己按钮 -->
+    <view class="self-only-toggle">
+      <button @click="toggleSelfOnly" :class="{ active: showOnlyMine }">
+        {{ showOnlyMine ? '取消仅看自己' : '仅看自己' }}
+      </button>
+    </view>
+
+    <!-- 内容列表 -->
+    <scroll-view scroll-y class="content-list" @scrolltolower="onScrollToLower">
+      <view v-for="(item, index) in filteredPosts" :key="item.id" class="post-item">
+        <!-- 头部：头像 + 作者 + 标题 + 时间 -->
+        <view class="post-header">
+          <!-- 头像 + 昵称 -->
+          <view class="author-line">
+            <view class="avatar-container">
+              <image :src="item.avatarUrl" mode="aspectFill" class="avatar"></image>
+            </view>
+            <text class="post-author">{{ item.author }}</text>
+          </view>
+        
+          <!-- 标题 -->
+          <text class="post-title">{{ item.title }}</text>
+        
+          <!-- 时间 -->
+          <text class="post-time">{{ item.createdAt }}</text>
+        </view>
+
+        <!-- 描述文字 -->
+        <view v-if="item.description" class="post-description">
+          {{ item.description }}
+        </view>
+
+        <!-- 媒体区域 -->
+        <view v-if="item.type === 'image' || item.type === 'video'" class="media-container">
+          <image v-if="item.type === 'image'" :src="item.mediaUrl" mode="aspectFill" class="media-image"></image>
+          <video v-else-if="item.type === 'video'" :src="item.mediaUrl" class="media-video" controls></video>
+        </view>
+
+        <view class="post-footer">
+          <text class="stat-item">👁️ {{ item.views }} 浏览</text>
+          <text class="stat-item">👍 {{ item.likes }} 点赞</text>
+          <text class="stat-item">💬 {{ item.comments }} 评论</text>
+        </view>
+
+        <view v-if="isMyPost(item)" class="post-actions">
+          <button @click="editPost(item)">编辑</button>
+          <button @click="confirmDelete(item)">删除</button>
+        </view>
+
+        <navigator :url="'/pages/comtent/detail/detail?id=' + item.id" class="post-link">
+          <text class="detail-link">查看详情</text>
+        </navigator>
+      </view>
+
+      <!-- 加载提示 -->
+      <view v-if="loading && posts.length > 0" class="loading-more">加载中...</view>
+      <view v-else-if="!hasMore && posts.length > 0" class="no-more">没有更多内容了</view>
+      <view v-else-if="posts.length === 0 && !loading" class="empty-tips">暂无内容</view>
+    </scroll-view>
+
+    <!-- 删除确认弹窗 -->
+    <view v-if="showDeleteConfirm" class="delete-confirm">
+      <text>确定要删除这条内容吗？</text>
+      <button @click="deletePost">确认</button>
+      <button @click="cancelDelete">取消</button>
+    </view>
+  </view>
 </template>
 
 <script setup>
-	
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+
+// ===== 数据状态 =====
+const posts = ref([])
+const loading = ref(false)
+const hasMore = ref(true)
+const currentPage = ref(1)
+const total = ref(0)
+
+// 用户 ID
+const myUserId = ref('')
+
+// ===== 筛选状态 =====
+const showOnlyMine = ref(false)
+const keyword = ref('')
+const manualTagInput = ref('') // ← 新增：手动输入标签
+const selectedTypeIndex = ref(0)
+const dateRangeIndex = ref(3) // 默认“全部”
+
+// ===== 选项列表 =====
+const types = ref(['全部', '图片', '视频', '文本'])
+const dateRanges = ref(['最近7天', '最近30天', '近3个月', '全部'])
+
+// 弹窗控制
+const showFilter = ref(false)
+const showDeleteConfirm = ref(false)
+const currentPostToDelete = ref(null)
+
+// ===== 计算属性 =====
+const filteredPosts = computed(() => {
+  return posts.value
+})
+
+// ===== 生命周期 =====
+onMounted(async () => {
+  const userInfo = uni.getStorageSync('userInfo')
+  if (userInfo?._id) {
+    myUserId.value = userInfo._id
+  }
+  await fetchPosts(true)
+})
+
+// ===== 获取内容列表 =====
+async function fetchPosts(reset = true) {
+  if (!hasMore.value && !reset) return
+  if (loading.value) return
+
+  loading.value = true
+  if (reset) {
+    currentPage.value = 1
+    posts.value = []
+  } else {
+    currentPage.value++
+  }
+
+  try {
+    // 解析标签输入：支持逗号分隔，自动去空格、去重、过滤空值
+    let tagsArray = []
+    if (manualTagInput.value.trim()) {
+      tagsArray = manualTagInput.value
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t !== '')
+    }
+
+    const params = {
+      page: currentPage.value,
+      page_size: 10,
+      keyword: keyword.value.trim(),
+      content_type: '',
+      tags: tagsArray, // ← 使用手动输入的标签数组
+      start_date: '',
+      end_date: ''
+    }
+
+    // 类型
+    if (selectedTypeIndex.value > 0) {
+      const typeMap = { '图片': 'image', '视频': 'video', '文本': 'text' }
+      params.content_type = typeMap[types.value[selectedTypeIndex.value]] || ''
+    }
+
+    // 日期范围
+    const now = new Date()
+    let startDate = null
+    let endDate = null
+
+    if (dateRangeIndex.value === 0) {
+      startDate = new Date(now.getTime() - 7 * 24 * 3600 * 1000)
+      endDate = now
+    } else if (dateRangeIndex.value === 1) {
+      startDate = new Date(now.getTime() - 30 * 24 * 3600 * 1000)
+      endDate = now
+    } else if (dateRangeIndex.value === 2) {
+      startDate = new Date(now.getTime() - 90 * 24 * 3600 * 1000)
+      endDate = now
+    }
+
+    if (startDate) {
+      params.start_date = formatDateISO(startDate)
+    }
+    if (endDate) {
+      params.end_date = formatDateISO(endDate)
+    }
+
+    // 仅看自己
+    if (showOnlyMine.value && myUserId.value) {
+      params.user_id = myUserId.value
+    }
+
+    const res = await uniCloud.callFunction({
+      name: 'content-api',
+      data: {
+        action: 'get',
+        ...params
+      }
+    })
+
+    const { code, data } = res.result
+    if (code === 200) {
+      const list = (data?.list || []).map(item => ({
+        id: item._id,
+        title: item.title || '无标题',
+        description: item.text_content || '',
+        author: item.author || '匿名',
+        createdAt: formatDate(item.created_at),
+        type: item.content_type || 'text',
+        mediaUrl: item.media_files?.[0]?.url || '',
+        views: item.stats?.view_count || 0,
+        likes: item.stats?.like_count || 0,
+        comments: item.stats?.comment_count || 0,
+        tags: item.tags || [],
+        isMine: item.user_id === myUserId.value,
+        avatarUrl: item.avatar || 'https://picsum.photos/100/100?random=' + Math.floor(Math.random() * 100)
+      }))
+
+      if (reset) {
+        posts.value = list
+      } else {
+        posts.value.push(...list)
+      }
+
+      total.value = data?.pagination?.total || 0
+      hasMore.value = posts.value.length < total.value
+    } else {
+      uni.showToast({ title: res.result.message || '加载失败', icon: 'none' })
+    }
+  } catch (err) {
+    console.error('[获取内容列表失败]', err)
+    uni.showToast({ title: '网络错误，请重试', icon: 'none' })
+  } finally {
+    loading.value = false
+  }
+}
+
+// 工具函数
+function formatDate(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function formatDateISO(date) {
+  return date.toISOString().split('T')[0]
+}
+
+// ===== 交互方法 =====
+function goUpload() {
+  uni.switchTab({ url: '/pages/comtent/upload/upload' })
+}
+function goProfile() {
+  uni.switchTab({ url: '/pages/user/profile/profile' })
+}
+
+function onSearch() {
+  fetchPosts(true)
+}
+
+function showFilterModal() {
+  showFilter.value = true
+}
+function closeFilter() {
+  showFilter.value = false
+}
+function applyFilters() {
+  closeFilter()
+  fetchPosts(true)
+}
+
+function onTypeChange(e) {
+  selectedTypeIndex.value = e.detail.value
+}
+function onDateRangeChange(e) {
+  dateRangeIndex.value = e.detail.value
+}
+
+function toggleSelfOnly() {
+  showOnlyMine.value = !showOnlyMine.value
+  fetchPosts(true)
+}
+
+function isMyPost(post) {
+  return post.isMine
+}
+
+function editPost(post) {
+  uni.navigateTo({
+    url: `/pages/content/edit/edit?id=${post.id}`
+  })
+}
+
+function confirmDelete(post) {
+  currentPostToDelete.value = post
+  showDeleteConfirm.value = true
+}
+
+async function deletePost() {
+  const post = currentPostToDelete.value
+  if (!post) return
+
+  try {
+    uni.showLoading({ title: '删除中...' })
+    const res = await uniCloud.callFunction({
+      name: 'content-api',
+      data: {
+        action: 'delete',
+        content_id: post.id
+      }
+    })
+
+    if (res.result.code === 200) {
+      uni.showToast({ title: '删除成功', icon: 'success' })
+      fetchPosts(true)
+    } else {
+      uni.showToast({ title: res.result.message || '删除失败', icon: 'none' })
+    }
+  } catch (err) {
+    console.error('[删除失败]', err)
+    uni.showToast({ title: '删除失败', icon: 'none' })
+  } finally {
+    uni.hideLoading()
+    cancelDelete()
+  }
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false
+  currentPostToDelete.value = null
+}
+
+function onScrollToLower() {
+  if (hasMore.value && !loading.value) {
+    fetchPosts(false)
+  }
+}
 </script>
 
-<style>
+<style scoped>
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f8f9fa;
+  padding: 0 40rpx;
+  box-sizing: border-box;
+}
 
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30rpx;
+  padding: 0 10rpx;
+  position: relative;
+  z-index: 999;
+  background-color: #f8f9fa;
+}
+.nav-btn {
+  flex: 1;
+  text-align: center;
+  line-height: 60rpx;
+  background-color: #007aff;
+  color: white;
+  border-radius: 30rpx;
+  font-size: 28rpx;
+  margin: 0 10rpx;
+  user-select: none;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+.search-bar input {
+  flex: 1;
+  padding: 15rpx 20rpx;
+  border: 1rpx solid #ddd;
+  border-radius: 30rpx;
+  font-size: 28rpx;
+}
+.search-bar button {
+  margin-left: 20rpx;
+  padding: 10rpx 20rpx;
+  background-color: #007aff;
+  color: white;
+  border-radius: 30rpx;
+  font-size: 28rpx;
+}
+
+.filter-modal {
+  background: white;
+  padding: 30rpx;
+  border-radius: 20rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.1);
+}
+.filter-item {
+  margin-bottom: 20rpx;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.self-only-toggle {
+  margin-bottom: 30rpx;
+  text-align: center;
+}
+.self-only-toggle button {
+  padding: 10rpx 30rpx;
+  background-color: #eaeaea;
+  color: #333;
+  border-radius: 20rpx;
+  font-size: 28rpx;
+}
+.self-only-toggle button.active {
+  background-color: #007aff;
+  color: white;
+}
+
+.content-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.post-item {
+  background: white;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.05);
+}
+
+.post-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+}
+
+.avatar-container {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: #eee;
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+}
+
+.post-author {
+  font-weight: bold;
+  color: #333;
+}
+
+.post-title {
+  margin-top: 4rpx;
+  color: #555;
+  font-size: 32rpx;
+}
+
+.post-time {
+  margin-top: 4rpx;
+  font-size: 24rpx;
+  color: #999;
+}
+
+.post-description {
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: #555;
+  padding: 20rpx;
+  background-color: #f9f9f9;
+  border-radius: 10rpx;
+  margin-bottom: 20rpx;
+}
+
+.media-container {
+  width: 100%;
+  height: 300rpx;
+  margin-bottom: 20rpx;
+  border-radius: 10rpx;
+  overflow: hidden;
+}
+.media-image {
+  width: 100%;
+  height: 100%;
+}
+.media-video {
+  width: 100%;
+  height: 100%;
+}
+
+.post-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 24rpx;
+  color: #666;
+  margin-bottom: 20rpx;
+}
+.post-actions {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
+}
+.post-actions button {
+  padding: 10rpx 20rpx;
+  background-color: #f0f0f0;
+  color: #333;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+}
+.post-link {
+  text-align: center;
+  color: #007aff;
+  font-size: 28rpx;
+  text-decoration: none;
+}
+
+.loading-more, .no-more, .empty-tips {
+  text-align: center;
+  padding: 30rpx;
+  color: #999;
+  font-size: 28rpx;
+}
+
+.delete-confirm {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 40rpx;
+  border-radius: 20rpx;
+  box-shadow: 0 10rpx 30rpx rgba(0,0,0,0.2);
+  text-align: center;
+  z-index: 1000;
+}
+.delete-confirm button {
+  margin-top: 20rpx;
+  padding: 15rpx 30rpx;
+  border: none;
+  border-radius: 20rpx;
+  font-size: 28rpx;
+  width: 100%;
+}
+.delete-confirm button:first-child {
+  background-color: #007aff;
+  color: white;
+}
+.delete-confirm button:last-child {
+  background-color: #ccc;
+  color: #333;
+  margin-top: 10rpx;
+}
 </style>

@@ -1,19 +1,84 @@
 {
-	"pages": [ //pages数组中第一项表示应用启动页，参考：https://doc.dcloud.net.cn/uni-app-x/collocation/pagesjson.html
-		{
-			"path": "pages/index/index",
-			"style": {
-				"navigationBarTitleText": "uni-app x"
-			}
-		}
-	],
-	"globalStyle": {
-		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "uni-app x",
-		"navigationBarBackgroundColor": "#F8F8F8",
-		"backgroundColor": "#F8F8F8"
-	},
-	"uniIdRouter": {},
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/user/login/login",
+      "style": {
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/user/register/register",
+      "style": {
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/comtent/upload/upload",
+      "style": {
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/comtent/list/list",
+      "style": {
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/comtent/detail/detail",
+      "style": {
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/user/profile/profile",
+      "style": {
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/user/change-password/change-password",
+      "style": {
+        "navigationBarTextStyle": "black"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationStyle": "custom"  // 自定义导航栏（需自行实现顶部栏）
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#007aff",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/comtent/upload/upload",
+        "text": "上传",
+        "iconPath": "static/images/upload.png",
+        "selectedIconPath": "static/images/upload_1.png"
+      },
+      {
+        "pagePath": "pages/comtent/list/list",
+        "text": "朋友圈",
+        "iconPath": "static/images/home.png",
+        "selectedIconPath": "static/images/home_1.png"
+      },
+      {
+        "pagePath": "pages/user/profile/profile",
+        "text": "个人中心",
+        "iconPath": "static/images/user.png",
+        "selectedIconPath": "static/images/user_1.png"
+      }
+    ]
+  },
 	"condition" : { //模式配置，仅开发期间生效
 		"current": 0, //当前激活的模式(list 的索引项)
 		"list": [

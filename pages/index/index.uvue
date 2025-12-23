@@ -1,24 +1,64 @@
 <template>
-	<view>
-		<image class="logo" src="/static/logo.png"></image>
-		<text class="title">{{title}}</text>
-	</view>
+  <view class="container">
+    <view class="title">朋友圈小程序</view>
+
+    <view class="btn-group">
+      <navigator url="/pages/user/login/login" class="btn">
+        跳转登录
+      </navigator>
+    </view>
+  </view>
 </template>
 
-<script setup lang="uts">
-	const title = ref('Hello')
+<script>
+export default {
+  // 可以留空，或添加其他逻辑（如 onShow、onLoad 等）
+  onLoad() {
+    // 如果需要初始化逻辑，可在这里写
+  }
+}
 </script>
 
 <style>
-	.logo {
-		height: 100px;
-		width: 100px;
-		margin: 100px auto 25px auto;
-	}
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #f5f5f5;
+  padding: 60rpx;
+}
 
-	.title {
-		font-size: 18px;
-		color: #8f8f94;
-		text-align: center;
-	}
+.title {
+  font-size: 60rpx;
+  margin-bottom: 120rpx;
+  color: #000000;
+  text-align: center;
+}
+
+.btn-group {
+  width: 100%;
+  max-width: 600rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 40rpx;
+}
+
+.btn {
+  display: block;
+  width: 103%;
+  padding: 30rpx;
+  background-color: #007aff;
+  color: white;
+  border-radius: 30rpx;
+  font-size: 32rpx;
+  line-height: 1.5;
+  text-decoration: none;
+  margin-left: -40rpx;
+}
+
+.btn:active {
+  opacity: 0.8;
+}
 </style>
